@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
-import { Loader2, Users, ArrowLeft, CheckCircle, XCircle, HelpCircle, Mail, Plus, Trash2, Edit, FileText } from 'lucide-react'
+import { Loader2, Users, ArrowLeft, CheckCircle, XCircle, HelpCircle, Mail, Plus, Trash2, Edit, FileText, Download, FileText as MailTemplate } from 'lucide-react'
 import { format } from 'date-fns'
 import {
   Table,
@@ -74,6 +74,18 @@ interface Event {
   max_guests: number
 }
 
+interface EmailTemplate {
+  id: string
+  name: string
+  subject: string
+  body: string
+  type: 'invitation' | 'reminder' | 'confirmation' | 'custom'
+  created_at: string
+  updated_at: string
+  organizer_id: string
+  event_id?: string | null
+}
+
 export default function EventGuestsPage() {
   const params = useParams()
   const router = useRouter()
@@ -91,6 +103,19 @@ export default function EventGuestsPage() {
   const [guestToDelete, setGuestToDelete] = useState<Guest | null>(null)
   const [bulkInput, setBulkInput] = useState('')
   const [showBulkAddDialog, setShowBulkAddDialog] = useState(false)
+  
+  // New states for template management
+  const [showTemplateDialog, setShowTemplateDialog] = useState(false)
+  const [templates, setTemplates] = useState<EmailTemplate[]>([])
+  const [currentTemplate, setCurrentTemplate] = useState<EmailTemplate | null>(null)
+  const [showCreateTemplatePanel, setShowCreateTemplatePanel] = useState(false)
+  const [templateFormData, setTemplateFormData] = useState({
+    name: '',
+    subject: '',
+    body: '',
+    type: 'invitation' as 'invitation' | 'reminder' | 'confirmation' | 'custom'
+  })
+  
   const [stats, setStats] = useState({
     total: 0,
     confirmed: 0,
@@ -139,6 +164,7 @@ export default function EventGuestsPage() {
     
     // All required data is available, fetch events and guests
     fetchEventAndGuests();
+    fetchTemplates();
   }, [user, authLoading, supabase, eventId]);
 
   const fetchEventAndGuests = async () => {
@@ -524,6 +550,221 @@ export default function EventGuestsPage() {
     }
   }
 
+  // Fetch email templates for this user and event
+  const fetchTemplates = async () => {
+    if (!supabase || !user || !eventId) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('email_templates')
+        .select('*')
+        .or(`organizer_id.eq.${user.id},event_id.eq.${eventId}`)
+        .order('name', { ascending: true })
+      
+      if (error) throw error
+      
+      setTemplates(data || [])
+    } catch (err) {
+      console.error('Failed to fetch email templates:', err)
+      // Don't show an error message to the user as this is not critical
+    }
+  }
+
+  // Handle template form input changes
+  const handleTemplateInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setTemplateFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  // Handle template type selection
+  const handleTemplateTypeChange = (value: string) => {
+    if (['invitation', 'reminder', 'confirmation', 'custom'].includes(value)) {
+      setTemplateFormData(prev => ({ 
+        ...prev, 
+        type: value as 'invitation' | 'reminder' | 'confirmation' | 'custom'
+      }))
+    }
+  }
+
+  // Reset template form
+  const resetTemplateForm = () => {
+    setTemplateFormData({
+      name: '',
+      subject: '',
+      body: '',
+      type: 'invitation'
+    })
+    setCurrentTemplate(null)
+  }
+
+  // Handle template editing
+  const handleEditTemplate = (template: EmailTemplate) => {
+    setTemplateFormData({
+      name: template.name,
+      subject: template.subject,
+      body: template.body,
+      type: template.type
+    })
+    setCurrentTemplate(template)
+    setShowCreateTemplatePanel(true)
+  }
+
+  // Save email template
+  const saveTemplate = async () => {
+    if (!supabase || !user || !eventId) return
+    
+    try {
+      setLoading(true)
+      
+      if (!templateFormData.name || !templateFormData.subject || !templateFormData.body) {
+        setError('Please fill in all required template fields')
+        setLoading(false)
+        return
+      }
+      
+      // Check if we're updating or creating
+      if (currentTemplate) {
+        // Update existing template
+        const { error } = await supabase
+          .from('email_templates')
+          .update({
+            name: templateFormData.name,
+            subject: templateFormData.subject,
+            body: templateFormData.body,
+            type: templateFormData.type,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', currentTemplate.id)
+          
+        if (error) throw error
+        
+        setSuccess('Template updated successfully')
+      } else {
+        // Create new template
+        const { error } = await supabase
+          .from('email_templates')
+          .insert({
+            name: templateFormData.name,
+            subject: templateFormData.subject,
+            body: templateFormData.body,
+            type: templateFormData.type,
+            organizer_id: user.id,
+            event_id: eventId,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          
+        if (error) throw error
+        
+        setSuccess('Template created successfully')
+      }
+      
+      // Reset form and refetch templates
+      resetTemplateForm()
+      fetchTemplates()
+      setShowCreateTemplatePanel(false)
+    } catch (err) {
+      console.error('Failed to save template:', err)
+      setError('Failed to save template')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Delete template
+  const deleteTemplate = async (templateId: string) => {
+    if (!supabase || !user) return
+    
+    try {
+      setLoading(true)
+      
+      const { error } = await supabase
+        .from('email_templates')
+        .delete()
+        .eq('id', templateId)
+        .eq('organizer_id', user.id) // Safety check
+        
+      if (error) throw error
+      
+      setSuccess('Template deleted successfully')
+      fetchTemplates()
+    } catch (err) {
+      console.error('Failed to delete template:', err)
+      setError('Failed to delete template')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Export guests as CSV function
+  const exportGuestsAsCSV = () => {
+    if (!guests.length) {
+      setError('No guests to export')
+      return
+    }
+
+    try {
+      // Filter the guests if there's a filter applied
+      const guestsToExport = filterStatus === 'all' 
+        ? guests 
+        : guests.filter(guest => guest.status === filterStatus)
+
+      // Create CSV header
+      const headers = ['Name', 'Email', 'Status', 'Response Date', 'Message', 'Created At']
+      
+      // Format the guest data for CSV
+      const csvData = guestsToExport.map(guest => [
+        guest.name,
+        guest.email,
+        guest.status,
+        guest.response_date ? new Date(guest.response_date).toLocaleDateString() : '',
+        guest.message || '',
+        new Date(guest.created_at).toLocaleDateString()
+      ])
+      
+      // Combine header and rows
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row => 
+          row.map(cell => 
+            // Handle commas and quotes in cell content
+            typeof cell === 'string' && (cell.includes(',') || cell.includes('"')) 
+              ? `"${cell.replace(/"/g, '""')}"` 
+              : cell
+          ).join(',')
+        )
+      ].join('\n')
+      
+      // Create a Blob with the CSV data
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      
+      // Create URL for the Blob
+      const url = URL.createObjectURL(blob)
+      
+      // Create a temporary link element
+      const link = document.createElement('a')
+      link.href = url
+      
+      // Set the filename using the event title if available
+      const dateStr = new Date().toISOString().split('T')[0]
+      const filename = `${event?.title || 'event'}-guests-${dateStr}.csv`
+      link.setAttribute('download', filename)
+      
+      // Append to body, click, and remove
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      // Release the URL
+      URL.revokeObjectURL(url)
+      
+      setSuccess('Guest list exported successfully')
+    } catch (err) {
+      console.error('Failed to export guests:', err)
+      setError('Failed to export guests')
+    }
+  }
+
   // Display loading state
   if (authLoading || loading) {
     return (
@@ -685,6 +926,88 @@ export default function EventGuestsPage() {
             <Mail className="h-4 w-4 mr-2" />
             Communications
           </Button>
+          
+          <Button
+            variant="outline"
+            onClick={exportGuestsAsCSV}
+            className="border-blue-500 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+
+          <Dialog open={showTemplateDialog} onOpenChange={setShowTemplateDialog}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="border-purple-500 text-purple-600 hover:bg-purple-50 hover:text-purple-700"
+              >
+                <MailTemplate className="h-4 w-4 mr-2" />
+                Templates
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Email Templates</DialogTitle>
+                <DialogDescription>
+                  Create and manage email templates for guest communications.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Your Templates</h3>
+                  <Button onClick={() => {
+                    resetTemplateForm();
+                    setShowCreateTemplatePanel(true);
+                  }}
+                  size="sm"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Template
+                  </Button>
+                </div>
+                
+                {templates.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <MailTemplate className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>You haven't created any templates yet.</p>
+                    <p className="text-sm">Templates make it easier to send consistent emails to your guests.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {templates.map(template => (
+                      <Card key={template.id} className="p-4">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h4 className="font-medium">{template.name}</h4>
+                            <p className="text-sm text-gray-500">{template.type} • Created {new Date(template.created_at).toLocaleDateString()}</p>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleEditTemplate(template)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="text-red-500 hover:text-red-700" 
+                              onClick={() => deleteTemplate(template.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -918,6 +1241,116 @@ export default function EventGuestsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Sheet open={showCreateTemplatePanel} onOpenChange={(open) => {
+        setShowCreateTemplatePanel(open);
+        if (!open) {
+          resetTemplateForm();
+        }
+      }}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>{currentTemplate ? 'Edit Template' : 'Create New Template'}</SheetTitle>
+            <SheetDescription>
+              {currentTemplate 
+                ? 'Update your email template with new content.'
+                : 'Create a reusable email template for your guest communications.'}
+            </SheetDescription>
+          </SheetHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="templateName">Template Name</Label>
+              <Input
+                id="templateName"
+                name="name"
+                value={templateFormData.name}
+                onChange={handleTemplateInputChange}
+                placeholder="e.g. VIP Invitation"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="templateType">Template Type</Label>
+              <Select 
+                value={templateFormData.type} 
+                onValueChange={handleTemplateTypeChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select template type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="invitation">Invitation</SelectItem>
+                  <SelectItem value="reminder">Reminder</SelectItem>
+                  <SelectItem value="confirmation">Confirmation</SelectItem>
+                  <SelectItem value="custom">Custom</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="templateSubject">Email Subject</Label>
+              <Input
+                id="templateSubject"
+                name="subject"
+                value={templateFormData.subject}
+                onChange={handleTemplateInputChange}
+                placeholder="e.g. You're Invited to Our Event!"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="templateBody">Email Body</Label>
+              <div className="mb-2">
+                <p className="text-xs text-gray-500">Available variables:</p>
+                <code className="text-xs bg-gray-100 p-1 rounded">
+                  {"{guest_name}"} {"{event_name}"} {"{event_date}"} {"{event_time}"} {"{event_location}"}
+                </code>
+              </div>
+              <Textarea
+                id="templateBody"
+                name="body"
+                value={templateFormData.body}
+                onChange={handleTemplateInputChange}
+                placeholder="Dear {guest_name},
+
+We're excited to invite you to {event_name} on {event_date} at {event_time}.
+
+The event will be held at {event_location}.
+
+Please let us know if you can attend!
+
+Best regards,
+The Event Team"
+                className="min-h-[200px]"
+                required
+              />
+            </div>
+          </div>
+          
+          <SheetFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => {
+                resetTemplateForm();
+                setShowCreateTemplatePanel(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={saveTemplate}
+              disabled={loading || !templateFormData.name || !templateFormData.subject || !templateFormData.body}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {currentTemplate ? 'Update Template' : 'Create Template'}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
   )
 } 
