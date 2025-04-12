@@ -2,7 +2,7 @@ import { Check, X, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 
-export function PricingCards() {
+export function PricingSection() {
   return (
     <section id="pricing" className="w-full py-12 md:py-24 bg-gray-50">
       <div className="container px-4 md:px-6">
@@ -21,36 +21,28 @@ export function PricingCards() {
           <div className="flex flex-col p-6 bg-white shadow-lg rounded-lg border border-gray-200 relative">
             <div className="text-center mb-4">
               <h3 className="text-xl font-bold">Starter</h3>
-              <div className="mt-2 text-gray-500 text-sm">Best for individuals or small personal events</div>
+              <div className="mt-2 text-gray-500 text-sm">For individuals and small events</div>
               <div className="mt-4">
                 <span className="text-3xl font-bold">₹0</span>
-                <span className="text-gray-500 ml-1">Free forever</span>
+                <span className="text-gray-500">/month</span>
               </div>
             </div>
-            <ul className="space-y-3 text-sm mb-6 flex-grow">
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Create up to 2 events/month</span>
+            <ul className="space-y-2 text-sm mb-6 flex-grow">
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
+                <span>2 events/month</span>
               </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Max 50 guests/event</span>
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
+                <span>Up to 50 guests/event</span>
               </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Basic event templates</span>
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
+                <span>Basic RSVP tracking</span>
               </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Email invitations (100/month)</span>
-              </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>RSVP tracking</span>
-              </li>
-              <li className="flex items-start">
-                <X className="h-5 w-5 text-gray-300 shrink-0 mr-2 mt-0.5" />
-                <span className="text-gray-500">No sub-events</span>
+              <li className="flex items-center">
+                <X className="h-4 w-4 mr-2 text-gray-300" />
+                <span className="text-gray-500">Sub-events</span>
               </li>
             </ul>
             <Button asChild variant="outline" className="mt-auto">
@@ -62,43 +54,39 @@ export function PricingCards() {
           </div>
 
           {/* Basic Plan */}
-          <div className="flex flex-col p-6 bg-white shadow-lg rounded-lg border-2 border-emerald-200 relative">
+          <div className="flex flex-col p-6 bg-white shadow-lg rounded-lg border border-emerald-200 relative">
             <div className="absolute top-0 left-0 right-0 bg-emerald-600 text-white text-center py-1 text-xs font-semibold rounded-t-lg">
               MOST POPULAR
             </div>
             <div className="text-center mb-4 pt-4">
               <h3 className="text-xl font-bold">Pro Organizer</h3>
-              <div className="mt-2 text-gray-500 text-sm">Suitable for freelancers, small teams, or clubs</div>
+              <div className="mt-2 text-gray-500 text-sm">For freelancers and small teams</div>
               <div className="mt-4">
                 <span className="text-3xl font-bold">₹299</span>
-                <span className="text-gray-500 ml-1">/month</span>
+                <span className="text-gray-500">/month</span>
               </div>
               <div className="text-xs text-gray-500 mt-1">or ₹2999/year (save ₹589)</div>
             </div>
-            <ul className="space-y-3 text-sm mb-6 flex-grow">
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Create up to 10 events/month</span>
+            <ul className="space-y-2 text-sm mb-6 flex-grow">
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
+                <span>10 events/month</span>
               </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Max 250 guests/event</span>
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
+                <span>Up to 250 guests/event</span>
               </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Event themes & design customizations</span>
-              </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Email invitations (1000/month)</span>
-              </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
                 <span>RSVP tracking + polls</span>
               </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
                 <span>Up to 3 sub-events</span>
+              </li>
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
+                <span>Basic analytics</span>
               </li>
             </ul>
             <Button asChild className="mt-auto bg-emerald-600 hover:bg-emerald-700">
@@ -113,37 +101,33 @@ export function PricingCards() {
           <div className="flex flex-col p-6 bg-white shadow-lg rounded-lg border border-gray-200 relative">
             <div className="text-center mb-4">
               <h3 className="text-xl font-bold">Event Pro+</h3>
-              <div className="mt-2 text-gray-500 text-sm">For event planners, colleges, and corporate teams</div>
+              <div className="mt-2 text-gray-500 text-sm">For businesses and large events</div>
               <div className="mt-4">
                 <span className="text-3xl font-bold">₹799</span>
-                <span className="text-gray-500 ml-1">/month</span>
+                <span className="text-gray-500">/month</span>
               </div>
               <div className="text-xs text-gray-500 mt-1">or ₹7999/year (save ₹1589)</div>
             </div>
-            <ul className="space-y-3 text-sm mb-6 flex-grow">
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
+            <ul className="space-y-2 text-sm mb-6 flex-grow">
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
                 <span>Unlimited events</span>
               </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
                 <span>Up to 2000 guests/event</span>
               </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
                 <span>Custom event branding</span>
               </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Email + WhatsApp invites</span>
-              </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
                 <span>Advanced analytics</span>
               </li>
-              <li className="flex items-start">
-                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>3rd party integrations</span>
+              <li className="flex items-center">
+                <Check className="h-4 w-4 mr-2 text-emerald-500" />
+                <span>Priority support</span>
               </li>
             </ul>
             <Button asChild variant="outline" className="mt-auto border-emerald-600 text-emerald-600 hover:text-emerald-700 hover:border-emerald-700">
@@ -169,4 +153,4 @@ export function PricingCards() {
       </div>
     </section>
   )
-}
+} 
