@@ -54,6 +54,7 @@
     "nodemailer": "^6.10.0",
     "puppeteer": "^24.6.1",
     "puppeteer-core": "^24.6.1",
+    "razorpay": "^2.9.6",
     "react": "^19",
     "react-day-picker": "8.10.1",
     "react-dom": "^19",
