@@ -10,27 +10,27 @@ export function FeatureShowcase() {
       <div className="container px-4 md:px-6">
         <div className="mx-auto max-w-5xl">
           <Tabs defaultValue="events" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-8 p-1 bg-white rounded-lg shadow-sm border border-gray-200">
+            <TabsList className="grid w-full grid-cols-3 mb-8 p-0.5 sm:p-1 bg-white rounded-lg shadow-sm border border-gray-200">
               <TabsTrigger 
                 value="events" 
-                className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm py-3 text-base"
+                className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm py-2 sm:py-3 px-1 sm:px-2 text-sm md:text-base truncate flex items-center justify-center"
               >
-                <CalendarRange className="h-5 w-5 mr-2" />
-                Events
+                <CalendarRange className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2 flex-shrink-0" />
+                <span className="truncate">Events</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="organizers"
-                className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm py-3 text-base"
+                className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm py-2 sm:py-3 px-1 sm:px-2 text-sm md:text-base truncate flex items-center justify-center"
               >
-                <Users className="h-5 w-5 mr-2" />
-                Organizers
+                <Users className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2 flex-shrink-0" />
+                <span className="truncate">Organizers</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="analytics"
-                className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm py-3 text-base"
+                className="data-[state=active]:bg-emerald-50 data-[state=active]:text-emerald-700 data-[state=active]:shadow-sm py-2 sm:py-3 px-1 sm:px-2 text-sm md:text-base truncate flex items-center justify-center"
               >
-                <Zap className="h-5 w-5 mr-2" />
-                Analytics
+                <Zap className="h-4 w-4 md:h-5 md:w-5 mr-1 md:mr-2 flex-shrink-0" />
+                <span className="truncate">Analytics</span>
               </TabsTrigger>
             </TabsList>
 
@@ -86,11 +86,12 @@ export function FeatureShowcase() {
                 </div>
                 <div className="rounded-lg overflow-hidden shadow-xl border border-gray-200">
                   <Image 
-                    src="/placeholder.svg?height=400&width=600" 
+                    src="/images/features/event-dashboard.svg" 
                     width={600} 
                     height={400} 
-                    alt="Event management dashboard" 
-                    className="object-cover"
+                    alt="Specyf event management dashboard showing guest list, RSVPs, and event details" 
+                    className="object-cover w-full h-full"
+                    priority
                   />
                 </div>
               </div>
@@ -100,11 +101,12 @@ export function FeatureShowcase() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
                 <div className="rounded-lg overflow-hidden shadow-xl border border-gray-200 order-2 md:order-1">
                   <Image 
-                    src="/placeholder.svg?height=400&width=600" 
+                    src="/images/features/organizer-tools.svg" 
                     width={600} 
                     height={400} 
-                    alt="Organizer tools interface" 
-                    className="object-cover"
+                    alt="Specyf organizer collaboration interface showing team management and task assignment" 
+                    className="object-cover w-full h-full"
+                    priority
                   />
                 </div>
                 <div className="space-y-6 order-1 md:order-2">
@@ -210,11 +212,12 @@ export function FeatureShowcase() {
                 </div>
                 <div className="rounded-lg overflow-hidden shadow-xl border border-gray-200">
                   <Image 
-                    src="/placeholder.svg?height=400&width=600" 
+                    src="/images/features/analytics-dashboard.svg" 
                     width={600} 
                     height={400} 
-                    alt="Analytics dashboard" 
-                    className="object-cover"
+                    alt="Specyf analytics dashboard showing event metrics, attendance statistics, and engagement data" 
+                    className="object-cover w-full h-full"
+                    priority
                   />
                 </div>
               </div>

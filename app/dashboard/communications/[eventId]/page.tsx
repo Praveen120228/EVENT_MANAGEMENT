@@ -1,60 +1,30 @@
-'use client'
+"use client"
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { useSupabase } from '@/hooks/useSupabase'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Separator } from '@/components/ui/separator'
-import { 
-  Loader2, 
-  ArrowLeft, 
-  Mail, 
-  Send, 
-  CalendarClock, 
-  Users, 
-  CheckCircle, 
-  XCircle,
-  HelpCircle,
-  Info
-} from 'lucide-react'
-import { format } from 'date-fns'
+import { useState, useEffect } from "react"
+import { useParams, useRouter } from "next/navigation"
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from "@/components/ui/tabs"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { Checkbox } from "@/components/ui/checkbox"
+import { Send, ArrowLeft, Calendar, Mail, Loader2 } from "lucide-react"
+import { format } from "date-fns"
+import { sendGuestInvitationEmails, sendGuestReminderEmails, sendAnnouncementEmail } from "@/app/utils/email-service"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
 
 interface Guest {
-  id: number
+  id: string
   event_id: string
   name: string
   email: string
   status: 'pending' | 'confirmed' | 'declined'
-  message?: string | null
-  response_date?: string | null
+  response_date: string | null
+  message: string | null
   created_at: string
   updated_at: string
 }
@@ -62,394 +32,481 @@ interface Guest {
 interface Event {
   id: string
   title: string
+  description: string | null
   date: string
-  location: string
-  time: string
-  description: string
-  max_guests: number
+  time: string | null
+  location: string | null
+  max_guests: number | null
   organizer_id: string
+  created_at: string
+  updated_at: string
 }
 
-export default function CommunicationsPage() {
+interface EmailLog {
+  id: string
+  event_id: string
+  type: 'invitation' | 'reminder'
+  sent_at: string
+  recipient_count: number
+}
+
+interface Announcement {
+  id: string
+  event_id: string
+  title: string
+  content: string
+  created_at: string
+}
+
+export default function EventCommunicationsPage() {
   const params = useParams()
   const router = useRouter()
-  const { user, supabase, loading: authLoading } = useSupabase()
-  const [loading, setLoading] = useState(true)
-  const [sending, setSending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [event, setEvent] = useState<Event | null>(null)
-  const [guests, setGuests] = useState<Guest[]>([])
-  const [stats, setStats] = useState({
-    total: 0,
-    confirmed: 0,
-    declined: 0,
-    pending: 0
-  })
-  
-  const [messageType, setMessageType] = useState<'invitation' | 'reminder' | 'update' | 'custom'>('invitation')
-  const [targetAudience, setTargetAudience] = useState<'all' | 'pending' | 'confirmed' | 'declined'>('all')
-  const [emailSubject, setEmailSubject] = useState('')
-  const [emailContent, setEmailContent] = useState('')
-  
+  const supabase = createClientComponentClient()
   const eventId = params.eventId as string
 
-  useEffect(() => {
-    if (!authLoading && user && supabase && eventId) {
-      fetchEventAndGuests()
-    } else if (!authLoading && !user) {
-      router.push('/auth/login')
-    }
-  }, [user, authLoading, supabase, eventId, router])
+  const [loading, setLoading] = useState(true)
+  const [sendingEmails, setSendingEmails] = useState(false)
+  const [event, setEvent] = useState<Event | null>(null)
+  const [guests, setGuests] = useState<Guest[]>([])
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>([])
+  const [selectedGuests, setSelectedGuests] = useState<Set<string>>(new Set())
+  const [error, setError] = useState<string>('')
+  const [success, setSuccess] = useState<string>('')
+  const [sendingAnnouncement, setSendingAnnouncement] = useState(false)
+  const [announcementTitle, setAnnouncementTitle] = useState("")
+  const [announcementContent, setAnnouncementContent] = useState("")
+  const [showAnnouncementForm, setShowAnnouncementForm] = useState(false)
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
 
   useEffect(() => {
-    if (event) {
-      setMessageTemplate(messageType)
-    }
-  }, [messageType, event])
-  
-  const fetchEventAndGuests = async () => {
-    if (!supabase || !user || !eventId) return
+    fetchEventData()
+  }, [eventId])
 
+  async function fetchEventData() {
     setLoading(true)
-    setError(null)
-
     try {
       // Fetch event details
       const { data: eventData, error: eventError } = await supabase
         .from('events')
         .select('*')
         .eq('id', eventId)
-        .eq('organizer_id', user.id)
         .single()
 
-      if (eventError) {
-        console.error('Error fetching event:', eventError)
-        throw eventError
-      }
-
+      if (eventError) throw eventError
+      if (!eventData) throw new Error('Event not found')
+      
       setEvent(eventData)
 
       // Fetch guests
-      const { data, error: fetchError } = await supabase
+      const { data: guestData, error: guestError } = await supabase
         .from('guests')
         .select('*')
         .eq('event_id', eventId)
         .order('created_at', { ascending: false })
+      
+      if (guestError) throw guestError
+      setGuests(guestData || [])
 
-      if (fetchError) {
-        console.error('Error fetching guests:', fetchError)
-        throw fetchError
-      }
+      // Fetch email logs (for demonstration - this table would need to be created)
+      // In a real implementation, you would create an email_logs table
+      setEmailLogs([
+        // Sample data - in a real app, this would come from the database
+        {
+          id: '1',
+          event_id: eventId,
+          type: 'invitation',
+          sent_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days ago
+          recipient_count: 5
+        }
+      ])
 
-      setGuests(data || [])
-
-      // Calculate stats
-      const confirmed = data?.filter(g => g.status === 'confirmed').length || 0
-      const declined = data?.filter(g => g.status === 'declined').length || 0
-      const pending = data?.filter(g => g.status === 'pending').length || 0
-
-      setStats({
-        total: data?.length || 0,
-        confirmed,
-        declined,
-        pending
-      })
-    } catch (err) {
-      console.error('Failed to fetch data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load event details')
+      // Fetch announcements
+      const { data: announcementData, error: announcementError } = await supabase
+        .from('event_announcements')
+        .select('*')
+        .eq('event_id', eventId)
+        .order('created_at', { ascending: false })
+      
+      if (announcementError) throw announcementError
+      setAnnouncements(announcementData || [])
+    } catch (error: any) {
+      console.error('Error fetching data:', error)
+      setError(error.message || 'Failed to load event data')
     } finally {
       setLoading(false)
     }
   }
-  
-  const setMessageTemplate = (type: 'invitation' | 'reminder' | 'update' | 'custom') => {
-    if (!event) return
-    
-    const eventDate = event.date ? format(new Date(event.date), 'EEEE, MMMM d, yyyy') : 'TBD'
-    
-    switch (type) {
-      case 'invitation':
-        setEmailSubject(`Invitation: ${event.title}`)
-        setEmailContent(`Hello {name},
 
-You are invited to ${event.title} on ${eventDate} at ${event.time || 'TBD'}.
-
-${event.location ? `Location: ${event.location}` : ''}
-
-${event.description || ''}
-
-Please let us know if you can attend by clicking one of the response buttons below.
-
-Looking forward to seeing you!
-`)
-        break
-        
-      case 'reminder':
-        setEmailSubject(`Reminder: ${event.title}`)
-        setEmailContent(`Hello {name},
-
-This is a friendly reminder about ${event.title} on ${eventDate} at ${event.time || 'TBD'}.
-
-${event.location ? `Location: ${event.location}` : ''}
-
-We're looking forward to seeing you there!
-`)
-        break
-        
-      case 'update':
-        setEmailSubject(`Update: ${event.title}`)
-        setEmailContent(`Hello {name},
-
-We have some updates regarding ${event.title} on ${eventDate}:
-
-[Add your updates here]
-
-If you have any questions, please reply to this email.
-
-Thank you!
-`)
-        break
-        
-      case 'custom':
-        // Keep current content or set empty if none
-        setEmailSubject(emailSubject || `About: ${event.title}`)
-        setEmailContent(emailContent || '')
-        break
+  const handleSelectAll = () => {
+    if (selectedGuests.size === guests.length) {
+      // Deselect all
+      setSelectedGuests(new Set())
+    } else {
+      // Select all
+      setSelectedGuests(new Set(guests.map(guest => guest.id)))
     }
   }
-  
-  const getTargetGuests = () => {
-    switch (targetAudience) {
-      case 'all':
-        return guests
-      case 'pending':
-        return guests.filter(g => g.status === 'pending')
-      case 'confirmed':
-        return guests.filter(g => g.status === 'confirmed')
-      case 'declined':
-        return guests.filter(g => g.status === 'declined')
-      default:
-        return guests
+
+  const handleSelectGuest = (guestId: string) => {
+    const newSelected = new Set(selectedGuests)
+    if (newSelected.has(guestId)) {
+      newSelected.delete(guestId)
+    } else {
+      newSelected.add(guestId)
     }
+    setSelectedGuests(newSelected)
   }
-  
-  const sendCommunications = async () => {
-    if (!supabase || !user || !eventId || !event) {
-      setError('Missing required information')
+
+  const sendInvitations = async () => {
+    if (selectedGuests.size === 0) {
+      setError('Please select at least one guest')
       return
     }
-    
-    const targetGuests = getTargetGuests()
-    
-    if (targetGuests.length === 0) {
-      setError('No guests selected to receive communications')
-      return
-    }
-    
-    if (!emailSubject.trim() || !emailContent.trim()) {
-      setError('Email subject and content cannot be empty')
-      return
-    }
-    
-    setSending(true)
-    setError(null)
-    setSuccess(null)
-    
+
+    setSendingEmails(true)
+    setError('')
+    setSuccess('')
+
     try {
-      // For each guest, send the email with personalized content
-      for (const guest of targetGuests) {
-        const personalizedContent = emailContent.replace(/{name}/g, guest.name)
-        
-        // In a real implementation, you would use an email API service or Supabase Edge Functions
-        // This is a simulation
-        
-        // Log the email instead of actually sending it in this demo
-        console.log(`Sending email to ${guest.email}:`)
-        console.log(`Subject: ${emailSubject}`)
-        console.log(`Content: ${personalizedContent}`)
-        
-        // Add a delay to simulate sending emails
-        await new Promise(resolve => setTimeout(resolve, 200))
-      }
+      const guestIds = Array.from(selectedGuests)
+      const baseUrl = window.location.origin
+
+      await sendGuestInvitationEmails(eventId, guestIds, baseUrl)
       
-      // In the real implementation, you would track these communications in the database
-      // For now, just show success message
-      setSuccess(`Successfully sent ${messageType} to ${targetGuests.length} guests`)
+      setSuccess(`Invitation emails sent to ${selectedGuests.size} guests successfully!`)
+      setSelectedGuests(new Set())
       
-      // Create a log entry in Supabase for the communication
-      await supabase.from('communications_log').insert({
-        event_id: eventId,
-        sender_id: user.id,
-        type: messageType,
-        subject: emailSubject,
-        recipients_count: targetGuests.length,
-        target_group: targetAudience
-      })
-      
-    } catch (err) {
-      console.error('Failed to send communications:', err)
-      setError(err instanceof Error ? err.message : 'Failed to send communications')
+      // In a real app, you would record this in the email_logs table
+      // and then refresh the email logs
+    } catch (error: any) {
+      console.error('Error sending invitations:', error)
+      setError(error.message || 'Failed to send invitation emails')
     } finally {
-      setSending(false)
-    }
-  }
-  
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'confirmed':
-        return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">Confirmed</Badge>
-      case 'declined':
-        return <Badge variant="destructive">Declined</Badge>
-      case 'pending':
-      default:
-        return <Badge variant="outline">Pending</Badge>
+      setSendingEmails(false)
     }
   }
 
-  if (authLoading || loading) {
+  const sendReminders = async () => {
+    if (selectedGuests.size === 0) {
+      setError('Please select at least one guest')
+      return
+    }
+
+    setSendingEmails(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const guestIds = Array.from(selectedGuests)
+      const baseUrl = window.location.origin
+
+      await sendGuestReminderEmails(eventId, guestIds, baseUrl)
+      
+      setSuccess(`Reminder emails sent to ${selectedGuests.size} guests successfully!`)
+      setSelectedGuests(new Set())
+      
+      // In a real app, you would record this in the email_logs table
+      // and then refresh the email logs
+    } catch (error: any) {
+      console.error('Error sending reminders:', error)
+      setError(error.message || 'Failed to send reminder emails')
+    } finally {
+      setSendingEmails(false)
+    }
+  }
+
+  const sendAnnouncement = async () => {
+    if (!announcementTitle.trim() || !announcementContent.trim()) {
+      setError('Please provide both a title and content for the announcement')
+      return
+    }
+
+    setSendingAnnouncement(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const baseUrl = window.location.origin
+      await sendAnnouncementEmail(
+        eventId, 
+        announcementTitle, 
+        announcementContent,
+        baseUrl
+      )
+      
+      setSuccess(`Announcement sent to all guests successfully!`)
+      setAnnouncementTitle("")
+      setAnnouncementContent("")
+      setShowAnnouncementForm(false)
+      fetchEventData() // Refresh data to show the new announcement
+    } catch (error: any) {
+      console.error('Error sending announcement:', error)
+      setError(error.message || 'Failed to send announcement')
+    } finally {
+      setSendingAnnouncement(false)
+    }
+  }
+
+  if (loading) {
     return (
-      <div className="container mx-auto py-8 flex justify-center items-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="container py-10 text-center">
+        <Loader2 className="h-10 w-10 animate-spin mx-auto" />
+        <p className="mt-4 text-muted-foreground">Loading communications dashboard...</p>
       </div>
     )
   }
 
-  const targetGuests = getTargetGuests()
-
-  return (
-    <div className="container mx-auto py-8">
-      <div className="flex items-center mb-6">
+  if (!event) {
+    return (
+      <div className="container py-10">
+        <Alert variant="destructive">
+          <AlertDescription>Event not found or you do not have permission to view it.</AlertDescription>
+        </Alert>
         <Button 
-          variant="ghost" 
-          onClick={() => router.push(`/dashboard/guests/${eventId}`)}
-          className="mr-4"
+          className="mt-4" 
+          variant="outline" 
+          onClick={() => router.push('/dashboard/events')}
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Guests
+          Back to Events
         </Button>
-        <h1 className="text-2xl font-bold">{event?.title ? `${event.title} - Communications` : 'Communications'}</h1>
+      </div>
+    )
+  }
+
+  return (
+    <div className="container py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => router.push(`/dashboard/guests/${eventId}`)}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-2xl font-bold tracking-tight">{event.title}</h1>
+          </div>
+          <p className="text-muted-foreground mt-1">
+            Communications Dashboard
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-muted-foreground">
+            <Calendar className="inline h-4 w-4 mr-1" />
+            {format(new Date(event.date), 'PPP')}
+            {event.time && ` at ${event.time}`}
+          </p>
+        </div>
       </div>
 
       {error && (
-        <Alert variant="destructive" className="mb-6">
+        <Alert variant="destructive" className="mb-4">
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
       {success && (
-        <Alert className="mb-6 border-emerald-500 bg-emerald-50 text-emerald-800">
+        <Alert className="mb-4 bg-green-50 text-green-800 border-green-200">
           <AlertDescription>{success}</AlertDescription>
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div>
-          <Card className="mb-6">
+      <Tabs defaultValue="send" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="send">Send Emails</TabsTrigger>
+          <TabsTrigger value="announce">Announcements</TabsTrigger>
+          <TabsTrigger value="history">Email History</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="send" className="space-y-4">
+          <Card>
             <CardHeader>
-              <CardTitle>Communications Dashboard</CardTitle>
+              <CardTitle>Send Communications</CardTitle>
               <CardDescription>
-                Send emails to your event guests
+                Select guests and send invitations or reminders.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="flex items-center mb-2">
-                    <CalendarClock className="h-5 w-5 mr-2 text-gray-500" />
-                    <h3 className="font-medium">Event Date</h3>
-                  </div>
-                  <p>
-                    {event?.date ? format(new Date(event.date), 'EEEE, MMMM d, yyyy') : 'Date not set'}
-                    {event?.time ? ` at ${event.time}` : ''}
-                  </p>
-                </div>
-                
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="flex items-center mb-2">
-                    <Users className="h-5 w-5 mr-2 text-gray-500" />
-                    <h3 className="font-medium">Guest Status</h3>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Confirmed: {stats.confirmed}</span>
-                    <span>Pending: {stats.pending}</span>
-                    <span>Declined: {stats.declined}</span>
-                  </div>
-                </div>
+              <div className="border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[50px]">
+                        <Checkbox 
+                          checked={selectedGuests.size > 0 && selectedGuests.size === guests.length}
+                          onCheckedChange={handleSelectAll}
+                        />
+                      </TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Added</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {guests.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="h-24 text-center">
+                          No guests found for this event.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      guests.map((guest) => (
+                        <TableRow key={guest.id}>
+                          <TableCell>
+                            <Checkbox 
+                              checked={selectedGuests.has(guest.id)}
+                              onCheckedChange={() => handleSelectGuest(guest.id)}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">{guest.name}</TableCell>
+                          <TableCell>{guest.email}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              guest.status === 'confirmed' ? 'default' :
+                              guest.status === 'declined' ? 'destructive' :
+                              'outline'
+                            }>
+                              {guest.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(guest.created_at), 'MM/dd/yyyy')}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
-              
-              <Separator className="my-4" />
-              
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="messageType">Message Type</Label>
-                  <Select 
-                    value={messageType} 
-                    onValueChange={(value) => setMessageType(value as any)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select message type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="invitation">Invitation</SelectItem>
-                      <SelectItem value="reminder">Reminder</SelectItem>
-                      <SelectItem value="update">Event Update</SelectItem>
-                      <SelectItem value="custom">Custom Message</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="targetAudience">Recipients</Label>
-                  <Select 
-                    value={targetAudience} 
-                    onValueChange={(value) => setTargetAudience(value as any)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select recipient group" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Guests ({stats.total})</SelectItem>
-                      <SelectItem value="pending">Pending Guests ({stats.pending})</SelectItem>
-                      <SelectItem value="confirmed">Confirmed Guests ({stats.confirmed})</SelectItem>
-                      <SelectItem value="declined">Declined Guests ({stats.declined})</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            </CardContent>
+            <CardFooter className="flex justify-between">
+              <div className="text-sm text-muted-foreground">
+                {selectedGuests.size} of {guests.length} guests selected
               </div>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={sendInvitations}
+                  disabled={sendingEmails || selectedGuests.size === 0}
+                >
+                  {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Mail className="h-4 w-4 mr-2" />}
+                  Send Invitations
+                </Button>
+                <Button
+                  onClick={sendReminders}
+                  disabled={sendingEmails || selectedGuests.size === 0}
+                >
+                  {sendingEmails ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}
+                  Send Reminders
+                </Button>
+              </div>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="announce" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Send Announcement</CardTitle>
+              <CardDescription>
+                Create and send announcements to all guests for this event.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {showAnnouncementForm ? (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="announcement-title" className="block mb-2">Announcement Title</Label>
+                    <Input 
+                      id="announcement-title"
+                      placeholder="e.g., Schedule Update, Important Information"
+                      value={announcementTitle}
+                      onChange={(e) => setAnnouncementTitle(e.target.value)}
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="announcement-content" className="block mb-2">Announcement Content</Label>
+                    <Textarea 
+                      id="announcement-content"
+                      placeholder="Enter your announcement details here..."
+                      value={announcementContent}
+                      onChange={(e) => setAnnouncementContent(e.target.value)}
+                      rows={6}
+                    />
+                  </div>
+                  
+                  <div className="flex gap-3 justify-end">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setShowAnnouncementForm(false)}
+                      disabled={sendingAnnouncement}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={sendAnnouncement}
+                      disabled={sendingAnnouncement || !announcementTitle.trim() || !announcementContent.trim()}
+                    >
+                      {sendingAnnouncement ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="h-4 w-4 mr-2" />
+                          Send Announcement
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="mb-4">Use announcements to share important updates with all guests attending this event.</p>
+                  <Button onClick={() => setShowAnnouncementForm(true)}>
+                    Create New Announcement
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
           
           <Card>
             <CardHeader>
-              <CardTitle>Preview Recipients</CardTitle>
-              <CardDescription>
-                {targetGuests.length} guest{targetGuests.length !== 1 ? 's' : ''} will receive this message
-              </CardDescription>
+              <CardTitle>Previous Announcements</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="max-h-[300px] overflow-y-auto border rounded-md">
+              <div className="border rounded-md">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Date</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {targetGuests.length === 0 ? (
+                    {announcements.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={3} className="text-center py-4 text-gray-500">
-                          No guests in this category
+                        <TableCell colSpan={3} className="h-24 text-center">
+                          No announcements have been sent for this event yet.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      targetGuests.map((guest) => (
-                        <TableRow key={guest.id}>
-                          <TableCell className="font-medium">{guest.name}</TableCell>
-                          <TableCell>{guest.email}</TableCell>
-                          <TableCell>{getStatusBadge(guest.status)}</TableCell>
+                      announcements.map((announcement) => (
+                        <TableRow key={announcement.id}>
+                          <TableCell className="font-medium">{announcement.title}</TableCell>
+                          <TableCell>{format(new Date(announcement.created_at), 'PPP p')}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                              Sent
+                            </Badge>
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
@@ -458,68 +515,49 @@ Thank you!
               </div>
             </CardContent>
           </Card>
-        </div>
-        
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle>Message Content</CardTitle>
-            <CardDescription>
-              Personalize your message with {'{name}'} to include each guest's name
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="emailSubject">Email Subject</Label>
-                <Input
-                  id="emailSubject"
-                  value={emailSubject}
-                  onChange={(e) => setEmailSubject(e.target.value)}
-                  placeholder="Subject line"
-                />
+        </TabsContent>
+
+        <TabsContent value="history">
+          <Card>
+            <CardHeader>
+              <CardTitle>Email History</CardTitle>
+              <CardDescription>
+                Record of all emails sent for this event.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="border rounded-md">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Sent Date</TableHead>
+                      <TableHead>Recipients</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {emailLogs.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="h-24 text-center">
+                          No emails have been sent for this event yet.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      emailLogs.map((log) => (
+                        <TableRow key={log.id}>
+                          <TableCell className="font-medium capitalize">{log.type}</TableCell>
+                          <TableCell>{format(new Date(log.sent_at), 'PPP p')}</TableCell>
+                          <TableCell>{log.recipient_count} recipients</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
-              
-              <div>
-                <Label htmlFor="emailContent">Email Content</Label>
-                <Textarea
-                  id="emailContent"
-                  value={emailContent}
-                  onChange={(e) => setEmailContent(e.target.value)}
-                  placeholder="Your message content"
-                  rows={12}
-                  className="font-mono text-sm"
-                />
-              </div>
-              
-              <Button 
-                onClick={sendCommunications} 
-                disabled={sending || targetGuests.length === 0 || !emailSubject.trim() || !emailContent.trim()}
-                className="w-full bg-emerald-600 hover:bg-emerald-700"
-              >
-                {sending ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-4 w-4 mr-2" />
-                    Send to {targetGuests.length} Guest{targetGuests.length !== 1 ? 's' : ''}
-                  </>
-                )}
-              </Button>
-              
-              <Alert>
-                <Info className="h-4 w-4" />
-                <AlertTitle>Note</AlertTitle>
-                <AlertDescription>
-                  This demo only simulates sending emails. In a production environment, you would integrate with an email service provider.
-                </AlertDescription>
-              </Alert>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 } 

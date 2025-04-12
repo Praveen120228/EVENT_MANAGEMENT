@@ -1,6 +1,6 @@
-# Specyf Platform
+# Specyf - Event Management Platform
 
-A modern event management platform built with Next.js and Supabase.
+Specyf is a modern event management platform built for creators, students, communities, and businesses. It enables users to create and manage events of various types, including workshops, meetups, business events, personal functions, and college fests.
 
 ## Features
 
@@ -13,79 +13,121 @@ A modern event management platform built with Next.js and Supabase.
 - Real-time messaging between organizers and guests
 - Interactive polls and feedback collection
 
+## Guest Management System
+
+Specyf features a frictionless guest management system that doesn't require guests to create accounts. Instead, it uses a tokenized URL approach for authentication:
+
+### Key Features
+
+1. **Account-Free Guest Experience**
+   - Guests receive personalized invitation links via email
+   - Guests can RSVP without creating an account or logging in
+   - Each invitation link contains unique identifiers for the event and guest
+
+2. **Email Communication**
+   - Automated invitation emails with event details and response links
+   - Reminder emails for pending responses
+   - Announcement emails for important updates
+   - Support for custom email templates
+
+3. **Guest Management Dashboard**
+   - View all guests for an event with their response status
+   - Filter and search guests 
+   - Add guests individually or in bulk
+   - Track confirmation and attendance rates
+
+4. **Interactive Features for Guests**
+   - Response status tracking (confirmed, declined, pending)
+   - Optional message field for guests to communicate with organizers
+   - Access to event announcements after responding
+   - Participation in event polls
+
+## Technical Implementation
+
+### Guest Authentication Flow
+
+1. **Invitation Link Generation**:
+   - Each guest receives a unique URL: `/guest/response/{eventId}/{guestId}`
+   - This URL contains the necessary identifiers to authenticate the guest
+   - No passwords or user accounts required
+
+2. **Response Process**:
+   - Guest clicks the link in their email
+   - System verifies the event and guest IDs
+   - Guest can confirm or decline their attendance
+   - Optional message field for the organizer
+
+3. **Event Details Access**:
+   - After responding, guests can view complete event details at `/guest/events/{eventId}?guestId={guestId}`
+   - Access to announcements and polls if available
+
+### Email System
+
+We use Nodemailer for email delivery with the following features:
+
+- **Environment-Based Behavior**:
+  - Development: Emails are logged to console
+  - Production: Emails are sent through configured provider
+  
+- **Email Types**:
+  - Invitations
+  - Reminders
+  - Announcements
+  
+- **Tracking and Logging**:
+  - All sent emails are logged in the database
+  - Success/failure tracking
+  - Recipient counts and delivery timestamps
+
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ and npm/yarn
-- A Supabase account
+- Node.js 18+
+- Supabase account
+- Email provider account (for production)
 
-### Setup
+### Configuration
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/specyf-platform.git
-   cd specyf-platform
-   ```
+1. Clone the repository
+2. Install dependencies with `pnpm install`
+3. Copy `.env.example` to `.env.local` and fill in the values
+4. Set up your Supabase database (migrations are in `/supabase/migrations`)
+5. Run `pnpm dev` to start the development server
 
-2. Install dependencies:
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
+### Email Configuration
 
-3. Create a `.env.local` file in the root directory with your Supabase credentials:
-   ```
-   NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-   ```
+For production deployment, set the following environment variables:
 
-4. Run the development server:
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   ```
-
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-## Database Setup
-
-### Setting up guest interaction tables
-
-To enable guest messaging, polls, and other interaction features, run:
-
-```bash
-npm run migrate:guest-tables
-# or
-yarn migrate:guest-tables
+```
+EMAIL_SERVICE=gmail     # or another supported service
+EMAIL_USER=your-email@example.com
+EMAIL_PASSWORD=your-app-password
+EMAIL_FROM=Your Name <your-email@example.com>
+NEXT_PUBLIC_APP_URL=https://your-production-url.com
 ```
 
-This will create the following tables in your Supabase database:
-- `messages` - For guest-organizer communication
-- `polls` - For creating feedback questions
-- `poll_responses` - For storing guest responses to polls
+For development, the system will log emails to the console instead of sending them.
 
-## Supabase Setup
+### Testing the Guest Experience
 
-1. Create a new project on [Supabase](https://supabase.com)
-2. Go to Project Settings > API to find your project URL and anon key
-3. Add these values to your `.env.local` file
-4. Enable Email Auth in Authentication > Providers > Email
-5. Configure your email provider in Authentication > Email Templates
+You can test the guest invitation system using the script:
 
-## Guest Access Features
+```
+node scripts/sample-invitation-links.js
+```
 
-The platform includes a dedicated guest portal that allows event guests to:
+This will generate test links for the sample guests included in the seed data.
 
-1. **Access events** - Using their email and guest ID from invitations
-2. **RSVP to events** - Confirm or decline attendance
-3. **Communicate with organizers** - Through a real-time messaging system
-4. **Respond to polls** - Answer questions and provide feedback
-5. **View event details** - See all information about the event
+## Database Schema
 
-Guests don't need to create full accounts - the system creates temporary authenticated sessions tied to their guest ID.
+The guest system uses the following key tables:
+
+- `guests`: Stores guest information and response status
+- `event_announcements`: Stores event announcements
+- `event_polls`: Stores polls created by organizers
+- `event_poll_responses`: Tracks guest responses to polls
+- `email_logs`: Records all email communications
 
 ## Project Structure
 

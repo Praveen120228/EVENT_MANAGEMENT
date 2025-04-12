@@ -54,6 +54,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { sendGuestInvitationEmails } from '@/app/utils/email-service'
 
 interface Guest {
   id: string
@@ -344,52 +345,86 @@ export default function EventGuestsPage() {
 
   // Function to add a new guest
   const addGuest = async () => {
-    if (!event?.id) return
-
-    setLoading(true)
-    resetMessages()
-
+    setLoading(true);
+    setError('');
+    
     try {
-      // Check if guest with this email already exists for this event
+      if (!formData.name || !formData.email) {
+        setError('Name and email are required');
+        setLoading(false);
+        return;
+      }
+      
+      // Check if guest already exists
       const { data: existingGuests } = await supabase
         .from('guests')
-        .select('*')
-        .eq('event_id', event.id)
-        .eq('email', formData.email)
-
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('email', formData.email);
+      
       if (existingGuests && existingGuests.length > 0) {
-        setError('A guest with this email already exists for this event')
-        setLoading(false)
-        return
+        setError('A guest with this email already exists for this event');
+        setLoading(false);
+        return;
       }
-
+      
       // Insert the new guest
-      const { error: insertError } = await supabase
+      const { data: newGuest, error: insertError } = await supabase
         .from('guests')
         .insert({
-          event_id: event.id,
+          event_id: eventId,
           name: formData.name,
           email: formData.email,
-          status: formData.status,
+          status: formData.status as 'pending' | 'confirmed' | 'declined',
           message: formData.message || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
-
+        .select();
+      
       if (insertError) {
-        throw insertError
+        setError(`Error adding guest: ${insertError.message}`);
+        setLoading(false);
+        return;
       }
-
-      // Refetch guests to update the list
-      await fetchGuests()
-      setSuccess('Guest added successfully')
-      resetForm()
-    } catch (error: any) {
-      setError(error.message || 'Failed to add guest')
+      
+      // Send invitation email
+      if (newGuest && newGuest.length > 0) {
+        try {
+          const baseUrl = window.location.origin;
+          await sendGuestInvitationEmails(eventId, [newGuest[0].id], baseUrl);
+        } catch (emailError) {
+          console.error('Failed to send invitation email:', emailError);
+          // We don't fail the operation if the email fails to send
+        }
+      }
+      
+      // Reset the form
+      setFormData({
+        name: '',
+        email: '',
+        status: 'pending',
+        message: ''
+      });
+      
+      // Close the sheet
+      if (sheetRef.current) {
+        (sheetRef.current as any).close();
+      }
+      
+      // Show success message
+      setSuccess(`Guest ${formData.name} has been added!`);
+      setTimeout(() => setSuccess(''), 3000);
+      
+      // Refresh the guest list
+      fetchGuests();
+    } catch (err) {
+      console.error('Error adding guest:', err);
+      setError('Failed to add guest. Please try again.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   // Function to update an existing guest
   const updateGuest = async () => {
@@ -456,68 +491,137 @@ export default function EventGuestsPage() {
   }
 
   const bulkAddGuests = async () => {
+    setLoading(true);
+    setError('');
+    
     try {
-      setLoading(true)
-      const lines = bulkInput.trim().split('\n')
-      const newGuests = []
+      if (!bulkInput.trim()) {
+        setError('Bulk data is empty');
+        setLoading(false);
+        return;
+      }
       
-      for (const line of lines) {
-        if (!line.trim()) continue
+      const lines = bulkInput.trim().split('\n');
+      const newGuests = [];
+      const errors = [];
+      const existingEmails = [];
+      
+      // First, fetch all existing guests for this event to check for duplicates
+      const { data: existingGuests } = await supabase
+        .from('guests')
+        .select('email')
+        .eq('event_id', eventId);
+      
+      const existingEmailSet = new Set(existingGuests?.map(g => g.email.toLowerCase()) || []);
+      
+      // Process each line
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
         
-        const parts = line.split(',').map(part => part.trim())
+        // Expected format: Name, Email, [Status], [Message]
+        const parts = line.split(',').map(part => part.trim());
+        
         if (parts.length < 2) {
-          throw new Error(`Invalid format: ${line}. Should be "Name, Email, Status(optional)"`)
+          errors.push(`Line ${i + 1}: Invalid format. Expected at least "Name, Email"`);
+          continue;
         }
         
-        const [name, email, status = 'pending'] = parts
-        if (!name || !email) {
-          throw new Error(`Name and email are required: ${line}`)
+        const name = parts[0];
+        const email = parts[1];
+        const status = (parts[2]?.toLowerCase() === 'confirmed' || parts[2]?.toLowerCase() === 'declined') 
+          ? parts[2].toLowerCase() 
+          : 'pending';
+        const message = parts[3] || null;
+        
+        if (!name) {
+          errors.push(`Line ${i + 1}: Name is required`);
+          continue;
         }
         
-        if (status && !['pending', 'confirmed', 'declined'].includes(status)) {
-          throw new Error(`Invalid status "${status}" in line: ${line}. Must be pending, confirmed, or declined.`)
+        if (!email || !/\S+@\S+\.\S+/.test(email)) {
+          errors.push(`Line ${i + 1}: Invalid email address`);
+          continue;
         }
+        
+        // Check for duplicates within the bulk data
+        if (existingEmailSet.has(email.toLowerCase())) {
+          existingEmails.push(email);
+          continue;
+        }
+        
+        existingEmailSet.add(email.toLowerCase());
         
         newGuests.push({
           event_id: eventId,
           name,
           email,
-          status: status as 'pending' | 'confirmed' | 'declined',
-          response_date: null,
-          message: null,
+          status,
+          message,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
-        })
+        });
+      }
+      
+      if (errors.length > 0) {
+        setError(`Found ${errors.length} errors:\n${errors.slice(0, 3).join('\n')}${errors.length > 3 ? `\n...and ${errors.length - 3} more` : ''}`);
+        setLoading(false);
+        return;
+      }
+      
+      if (existingEmails.length > 0) {
+        setError(`${existingEmails.length} emails already exist: ${existingEmails.slice(0, 3).join(', ')}${existingEmails.length > 3 ? `, and ${existingEmails.length - 3} more` : ''}`);
+        setLoading(false);
+        return;
       }
       
       if (newGuests.length === 0) {
-        throw new Error('No valid guests to add')
+        setError('No valid guests to add');
+        setLoading(false);
+        return;
       }
       
-      const { error } = await supabase
+      // Insert all the new guests
+      const { data: insertedGuests, error: insertError } = await supabase
         .from('guests')
         .insert(newGuests)
-        
-      if (error) throw error
+        .select();
       
-      setBulkInput('')
-      setSuccess(`Successfully added ${newGuests.length} guests`)
-      fetchGuests()
+      if (insertError) {
+        setError(`Error adding guests: ${insertError.message}`);
+        setLoading(false);
+        return;
+      }
       
-      // Auto-hide success message after 3 seconds
-      setTimeout(() => {
-        setSuccess('')
-      }, 3000)
-    } catch (err: any) {
-      setError(err.message || 'Failed to add guests')
-      // Auto-hide error message after 5 seconds
-      setTimeout(() => {
-        setError('')
-      }, 5000)
+      // Send invitation emails to all new guests
+      if (insertedGuests && insertedGuests.length > 0) {
+        try {
+          const baseUrl = window.location.origin;
+          const guestIds = insertedGuests.map(guest => guest.id);
+          await sendGuestInvitationEmails(eventId, guestIds, baseUrl);
+        } catch (emailError) {
+          console.error('Failed to send some invitation emails:', emailError);
+          // We don't fail the operation if emails fail to send
+        }
+      }
+      
+      // Reset the form and close the dialog
+      setBulkInput('');
+      setShowBulkAddDialog(false);
+      
+      // Show success message
+      setSuccess(`Added ${newGuests.length} guests successfully!`);
+      setTimeout(() => setSuccess(''), 3000);
+      
+      // Refresh the guest list
+      fetchGuests();
+    } catch (err) {
+      console.error('Error bulk adding guests:', err);
+      setError('Failed to add guests. Please try again.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const filteredGuests = guests.filter(guest => {
     return filterStatus === 'all' || guest.status === filterStatus

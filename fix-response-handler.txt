@@ -1,0 +1,49 @@
+async function handleResponse(status: 'confirmed' | 'declined') {
+  try {
+    setSubmitting(true);
+    setError("");
+    
+    console.log("Updating guest response:", { guestId, eventId, status });
+    
+    // Update the guest status
+    const { error: updateError } = await supabase
+      .from('guests')
+      .update({ 
+        status, 
+        message,
+        response_date: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', guestId)
+      .eq('event_id', eventId);
+    
+    if (updateError) {
+      console.error("Error updating guest response:", updateError);
+      throw new Error(`Failed to update response: ${updateError.message}`);
+    }
+    
+    setSuccess(`Thank you! Your response has been recorded as ${status}.`);
+    
+    // Refetch the guest data to update the UI
+    const { data: updatedGuest, error: fetchError } = await supabase
+      .from('guests')
+      .select('*')
+      .eq('id', guestId)
+      .maybeSingle(); // Using maybeSingle instead of single
+    
+    if (fetchError) {
+      console.error("Error fetching updated guest data:", fetchError);
+      // We don't throw here since the update was successful
+    }
+    
+    if (updatedGuest) {
+      setGuest(updatedGuest);
+    }
+    
+  } catch (err: any) {
+    console.error('Error responding to event:', err);
+    setError(err.message || 'Failed to update your response');
+  } finally {
+    setSubmitting(false);
+  }
+} 
