@@ -86,6 +86,21 @@ interface EmailTemplate {
   event_id?: string | null
 }
 
+// New interface for guest templates
+interface GuestTemplate {
+  id: string
+  name: string
+  guests: {
+    name: string
+    email: string
+    status: 'pending' | 'confirmed' | 'declined'
+    message?: string | null
+  }[]
+  organizer_id: string
+  created_at: string
+  updated_at: string
+}
+
 export default function EventGuestsPage() {
   const params = useParams()
   const router = useRouter()
@@ -115,6 +130,13 @@ export default function EventGuestsPage() {
     body: '',
     type: 'invitation' as 'invitation' | 'reminder' | 'confirmation' | 'custom'
   })
+  
+  // New states for guest template management
+  const [guestTemplates, setGuestTemplates] = useState<GuestTemplate[]>([])
+  const [showGuestTemplateDialog, setShowGuestTemplateDialog] = useState(false)
+  const [showSaveTemplateDialog, setShowSaveTemplateDialog] = useState(false)
+  const [templateName, setTemplateName] = useState('')
+  const [selectedTemplate, setSelectedTemplate] = useState<GuestTemplate | null>(null)
   
   const [stats, setStats] = useState({
     total: 0,
@@ -165,6 +187,7 @@ export default function EventGuestsPage() {
     // All required data is available, fetch events and guests
     fetchEventAndGuests();
     fetchTemplates();
+    fetchGuestTemplates();
   }, [user, authLoading, supabase, eventId]);
 
   const fetchEventAndGuests = async () => {
@@ -770,6 +793,145 @@ export default function EventGuestsPage() {
     }
   }
 
+  // Add this new function to fetch guest templates
+  const fetchGuestTemplates = async () => {
+    if (!supabase || !user) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('guest_templates')
+        .select('*')
+        .eq('organizer_id', user.id)
+        .order('name', { ascending: true })
+      
+      if (error) throw error
+      
+      setGuestTemplates(data || [])
+    } catch (err) {
+      console.error('Failed to fetch guest templates:', err)
+      // Don't show an error message to the user as this is not critical
+    }
+  }
+  
+  // Function to save the current guest list as a template
+  const saveGuestListAsTemplate = async () => {
+    if (!supabase || !user || !templateName.trim()) return
+    
+    try {
+      setLoading(true)
+      
+      // Create a simplified version of the guests for the template
+      const templateGuests = guests.map(guest => ({
+        name: guest.name,
+        email: guest.email,
+        status: guest.status,
+        message: guest.message
+      }))
+      
+      const { error } = await supabase
+        .from('guest_templates')
+        .insert({
+          name: templateName,
+          guests: templateGuests,
+          organizer_id: user.id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        
+      if (error) throw error
+      
+      setSuccess('Guest template saved successfully')
+      setTemplateName('')
+      setShowSaveTemplateDialog(false)
+      fetchGuestTemplates()
+    } catch (err) {
+      console.error('Failed to save guest template:', err)
+      setError('Failed to save guest template')
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  // Function to apply a template to the current event
+  const applyGuestTemplate = async () => {
+    if (!supabase || !selectedTemplate || !eventId) return
+    
+    try {
+      setLoading(true)
+      
+      // Format guest data for insertion
+      const newGuests = selectedTemplate.guests.map(guest => ({
+        event_id: eventId,
+        name: guest.name,
+        email: guest.email,
+        status: guest.status,
+        message: guest.message,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }))
+      
+      // Check for duplicate emails
+      const { data: existingGuests } = await supabase
+        .from('guests')
+        .select('email')
+        .eq('event_id', eventId)
+      
+      const existingEmails = new Set(existingGuests?.map(g => g.email.toLowerCase()) || [])
+      
+      // Filter out guests that already exist
+      const uniqueGuests = newGuests.filter(g => !existingEmails.has(g.email.toLowerCase()))
+      
+      if (uniqueGuests.length === 0) {
+        setError('All guests from this template already exist in this event')
+        setLoading(false)
+        setShowGuestTemplateDialog(false)
+        return
+      }
+      
+      // Insert new guests
+      const { error } = await supabase
+        .from('guests')
+        .insert(uniqueGuests)
+        
+      if (error) throw error
+      
+      setSuccess(`Added ${uniqueGuests.length} guests from template`)
+      setSelectedTemplate(null)
+      setShowGuestTemplateDialog(false)
+      fetchGuests()
+    } catch (err) {
+      console.error('Failed to apply guest template:', err)
+      setError('Failed to add guests from template')
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  // Function to delete a guest template
+  const deleteGuestTemplate = async (templateId: string) => {
+    if (!supabase || !user) return
+    
+    try {
+      setLoading(true)
+      
+      const { error } = await supabase
+        .from('guest_templates')
+        .delete()
+        .eq('id', templateId)
+        .eq('organizer_id', user.id) // Safety check
+        
+      if (error) throw error
+      
+      setSuccess('Template deleted successfully')
+      fetchGuestTemplates()
+    } catch (err) {
+      console.error('Failed to delete guest template:', err)
+      setError('Failed to delete template')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Display loading state
   if (authLoading || loading) {
     return (
@@ -1011,6 +1173,134 @@ export default function EventGuestsPage() {
                   </div>
                 )}
               </div>
+            </DialogContent>
+          </Dialog>
+          
+          {/* Guest Templates Button */}
+          <Dialog open={showGuestTemplateDialog} onOpenChange={setShowGuestTemplateDialog}>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="border-amber-500 text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Guest Templates
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Guest List Templates</DialogTitle>
+                <DialogDescription>
+                  Apply saved guest lists to quickly add multiple guests.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-medium">Your Guest Templates</h3>
+                  <Button 
+                    onClick={() => setShowSaveTemplateDialog(true)} 
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Save Current List
+                  </Button>
+                </div>
+                
+                {guestTemplates.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>You haven't saved any guest list templates yet.</p>
+                    <p className="text-sm">Save your guest lists as templates to reuse them for future events.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {guestTemplates.map(template => (
+                      <Card key={template.id} className="p-4">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h4 className="font-medium">{template.name}</h4>
+                            <p className="text-sm text-gray-500">
+                              {template.guests.length} guests • Created {new Date(template.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                              onClick={() => {
+                                setSelectedTemplate(template);
+                                applyGuestTemplate();
+                              }}
+                            >
+                              Apply
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="text-red-500 hover:text-red-700" 
+                              onClick={() => deleteGuestTemplate(template.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+          
+          {/* Save Current Guest List as Template Dialog */}
+          <Dialog open={showSaveTemplateDialog} onOpenChange={setShowSaveTemplateDialog}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Save Guest List as Template</DialogTitle>
+                <DialogDescription>
+                  Save your current guest list as a reusable template.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="templateName">Template Name</Label>
+                  <Input
+                    id="templateName"
+                    value={templateName}
+                    onChange={(e) => setTemplateName(e.target.value)}
+                    placeholder="e.g. VIP Guests, Team Members, etc."
+                    required
+                  />
+                </div>
+                
+                <p className="text-sm text-gray-500">
+                  This template will include all {guests.length} guests currently in your list.
+                </p>
+              </div>
+              
+              <DialogFooter className="mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowSaveTemplateDialog(false);
+                    setTemplateName('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={saveGuestListAsTemplate}
+                  disabled={!templateName.trim() || loading || guests.length === 0}
+                  className="bg-amber-600 hover:bg-amber-700"
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Save Template
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
