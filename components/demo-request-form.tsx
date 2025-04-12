@@ -9,15 +9,88 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { CheckCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { CheckCircle, Loader2 } from "lucide-react"
+import { getSupabaseClient } from "@/lib/supabase"
+
+type FormData = {
+  name: string
+  email: string
+  company: string
+  eventType: string
+  message: string
+}
 
 export function DemoRequestForm() {
+  const [formData, setFormData] = useState<FormData>({
+    name: '',
+    email: '',
+    company: '',
+    eventType: '',
+    message: ''
+  })
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { id, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [id]: value
+    }))
+  }
+
+  const handleEventTypeChange = (value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      eventType: value
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // In a real application, you would handle the form submission here
-    setIsSubmitted(true)
+    setIsSubmitting(true)
+    setError(null)
+    
+    try {
+      const supabase = getSupabaseClient()
+      
+      // Check required fields
+      if (!formData.name || !formData.email || !formData.eventType) {
+        throw new Error('Please fill all required fields')
+      }
+
+      // Insert into demo_requests table
+      const { error: insertError } = await supabase
+        .from('demo_requests')
+        .insert([
+          {
+            name: formData.name,
+            email: formData.email,
+            company: formData.company || null,
+            event_type: formData.eventType,
+            message: formData.message || null,
+            status: 'new',
+            created_at: new Date().toISOString()
+          }
+        ])
+
+      if (insertError) {
+        console.error('Error submitting demo request:', insertError)
+        throw new Error('Failed to submit demo request. Please try again.')
+      }
+
+      // Success - show success message
+      setIsSubmitted(true)
+    } catch (err: any) {
+      console.error('Demo request submission failed:', err)
+      setError(err.message || 'An unexpected error occurred')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   if (isSubmitted) {
@@ -49,22 +122,49 @@ export function DemoRequestForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
-            <Input id="name" placeholder="John Smith" required />
+            <Label htmlFor="name">Full Name *</Label>
+            <Input 
+              id="name" 
+              placeholder="John Smith" 
+              value={formData.name}
+              onChange={handleInputChange}
+              required 
+            />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" placeholder="john@example.com" required />
+            <Label htmlFor="email">Email *</Label>
+            <Input 
+              id="email" 
+              type="email" 
+              placeholder="john@example.com" 
+              value={formData.email}
+              onChange={handleInputChange}
+              required 
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="company">Company/Organization</Label>
-            <Input id="company" placeholder="Acme Inc." />
+            <Input 
+              id="company" 
+              placeholder="Acme Inc." 
+              value={formData.company}
+              onChange={handleInputChange}
+            />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="event-type">Primary Event Type</Label>
-            <Select>
-              <SelectTrigger id="event-type">
+            <Label htmlFor="eventType">Primary Event Type *</Label>
+            <Select
+              value={formData.eventType}
+              onValueChange={handleEventTypeChange}
+              required
+            >
+              <SelectTrigger id="eventType">
                 <SelectValue placeholder="Select event type" />
               </SelectTrigger>
               <SelectContent>
@@ -83,12 +183,25 @@ export function DemoRequestForm() {
               id="message"
               placeholder="Tell us about your event management needs..."
               className="min-h-[100px]"
+              value={formData.message}
+              onChange={handleInputChange}
             />
           </div>
         </CardContent>
         <CardFooter>
-          <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700">
-            Request Demo
+          <Button 
+            type="submit" 
+            className="w-full bg-emerald-600 hover:bg-emerald-700"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Submitting...
+              </>
+            ) : (
+              'Request Demo'
+            )}
           </Button>
         </CardFooter>
       </form>

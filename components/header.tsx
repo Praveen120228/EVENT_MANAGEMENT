@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { CalendarRange, Menu } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -9,6 +10,19 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const pathname = usePathname()
+  const isHomePage = pathname === "/"
+
+  // Helper function to create proper links
+  const getNavLink = (sectionId: string) => {
+    // If we're on the home page, use hash links
+    if (isHomePage) {
+      return `#${sectionId}`
+    }
+    
+    // If we're on a different page, use absolute path to the home page section
+    return `/#${sectionId}`
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -18,16 +32,16 @@ export function Header() {
           <span className="text-xl font-bold">Specyf</span>
         </Link>
         <nav className="hidden md:flex gap-6">
-          <Link href="#features" className="text-sm font-medium hover:text-emerald-500 transition-colors">
+          <Link href={getNavLink("features")} className="text-sm font-medium hover:text-emerald-500 transition-colors">
             Features
           </Link>
-          <Link href="#pricing" className="text-sm font-medium hover:text-emerald-500 transition-colors">
+          <Link href={getNavLink("pricing")} className="text-sm font-medium hover:text-emerald-500 transition-colors">
             Pricing
           </Link>
-          <Link href="#testimonials" className="text-sm font-medium hover:text-emerald-500 transition-colors">
+          <Link href={getNavLink("testimonials")} className="text-sm font-medium hover:text-emerald-500 transition-colors">
             Testimonials
           </Link>
-          <Link href="#contact" className="text-sm font-medium hover:text-emerald-500 transition-colors">
+          <Link href={getNavLink("request-demo")} className="text-sm font-medium hover:text-emerald-500 transition-colors">
             Contact
           </Link>
         </nav>
@@ -49,28 +63,28 @@ export function Header() {
           <SheetContent side="right" className="w-[300px] sm:w-[400px]">
             <div className="flex flex-col gap-6 pt-6">
               <Link
-                href="#features"
+                href={getNavLink("features")}
                 className="text-lg font-medium hover:text-emerald-500 transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Features
               </Link>
               <Link
-                href="#pricing"
+                href={getNavLink("pricing")}
                 className="text-lg font-medium hover:text-emerald-500 transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Pricing
               </Link>
               <Link
-                href="#testimonials"
+                href={getNavLink("testimonials")}
                 className="text-lg font-medium hover:text-emerald-500 transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Testimonials
               </Link>
               <Link
-                href="#contact"
+                href={getNavLink("request-demo")}
                 className="text-lg font-medium hover:text-emerald-500 transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >

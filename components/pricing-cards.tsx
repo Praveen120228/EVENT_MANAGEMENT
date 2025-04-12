@@ -42,7 +42,9 @@ export function PricingCards() {
                 </li>
               </ul>
             </div>
-            <Button className="mt-8">Get Started</Button>
+            <Button className="mt-8" asChild>
+              <a href="/auth/signup">Get Started</a>
+            </Button>
           </div>
 
           <div className="flex flex-col rounded-lg border bg-card p-8">
@@ -70,7 +72,9 @@ export function PricingCards() {
                 </li>
               </ul>
             </div>
-            <Button className="mt-8">Get Started</Button>
+            <Button className="mt-8" asChild>
+              <a href="/auth/signup?plan=pro">Get Started</a>
+            </Button>
           </div>
 
           <div className="flex flex-col rounded-lg border bg-card p-8">
@@ -98,7 +102,9 @@ export function PricingCards() {
                 </li>
               </ul>
             </div>
-            <Button className="mt-8">Contact Sales</Button>
+            <Button className="mt-8" asChild>
+              <a href="/contact?inquiry=enterprise">Contact Sales</a>
+            </Button>
           </div>
         </div>
       </div>

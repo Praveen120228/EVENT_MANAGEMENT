@@ -34,17 +34,12 @@ export default function Home() {
                     precision.
                   </p>
                 </div>
-                <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700" asChild>
-                    <Link href="/auth/signup">
-                      Create Your First Event
-                      <ChevronRight className="ml-2 h-4 w-4" />
-                    </Link>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button className="bg-emerald-600 hover:bg-emerald-700" size="lg" asChild>
+                    <Link href="/auth/signup">Start Planning Now</Link>
                   </Button>
-                  <Button size="lg" variant="outline" asChild>
-                    <Link href="/auth/login">
-                      Explore as Guest
-                    </Link>
+                  <Button variant="outline" size="lg" asChild>
+                    <Link href="#features">Learn More</Link>
                   </Button>
                 </div>
                 <div className="flex items-center space-x-4 text-sm">
@@ -113,7 +108,9 @@ export default function Home() {
                       <span>Create polls and gather preferences</span>
                     </li>
                   </ul>
-                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700">Get Started as Organizer</Button>
+                  <Button className="w-full bg-emerald-600 hover:bg-emerald-700" asChild>
+                    <Link href="/auth/signup">Get Started as Organizer</Link>
+                  </Button>
                 </CardContent>
               </Card>
               <Card>
@@ -140,11 +137,23 @@ export default function Home() {
                       <span>Connect with other attendees</span>
                     </li>
                   </ul>
-                  <Button variant="outline" className="w-full">
-                    Explore as Guest
+                  <Button variant="outline" className="w-full" asChild>
+                    <Link href="#features">Learn More</Link>
                   </Button>
                 </CardContent>
               </Card>
+            </div>
+          </div>
+        </section>
+
+        {/* Features */}
+        <section id="features" className="py-20 bg-gray-50">
+          <div className="container px-4 md:px-6">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold tracking-tight mb-2">Everything You Need to Run Successful Events</h2>
+              <p className="text-gray-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed mx-auto max-w-[700px]">
+                Manage every aspect of your event lifecycle with our comprehensive features
+              </p>
             </div>
           </div>
         </section>
@@ -159,7 +168,7 @@ export default function Home() {
         <Testimonials />
 
         {/* Demo Request */}
-        <section className="w-full py-12 md:py-24 lg:py-32 bg-emerald-50 dark:bg-emerald-950/20">
+        <section id="request-demo" className="w-full py-12 md:py-24 lg:py-32 bg-emerald-50 dark:bg-emerald-950/20">
           <div className="container px-4 md:px-6">
             <div className="grid gap-6 lg:grid-cols-2 lg:gap-12">
               <div className="flex flex-col justify-center space-y-4">
@@ -173,11 +182,11 @@ export default function Home() {
                   </p>
                 </div>
                 <div className="flex flex-col gap-2 min-[400px]:flex-row">
-                  <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700">
-                    Book a Demo
+                  <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700" asChild>
+                    <a href="#request-demo">Book a Demo</a>
                   </Button>
-                  <Button size="lg" variant="outline">
-                    View Documentation
+                  <Button size="lg" variant="outline" asChild>
+                    <Link href="/docs">View Documentation</Link>
                   </Button>
                 </div>
                 <div className="flex items-center space-x-4 text-sm">
