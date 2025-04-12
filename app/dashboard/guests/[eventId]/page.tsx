@@ -370,14 +370,19 @@ export default function EventGuestsPage() {
 
   // Function to update an existing guest
   const updateGuest = async () => {
-    if (!currentGuestId) return
+    if (!currentGuestId) {
+      setError('No guest selected for editing')
+      return
+    }
     
     try {
       setLoading(true)
+      setError('')
+      setSuccess('')
       
       const { error } = await supabase
         .from('guests')
-        .update({ 
+        .update({
           name: formData.name,
           email: formData.email,
           status: formData.status,
@@ -388,22 +393,16 @@ export default function EventGuestsPage() {
         
       if (error) throw error
       
+      await fetchGuests()
       setSuccess('Guest updated successfully')
-      fetchGuests()
       resetForm()
-      setShowEditPanel(false)
       setCurrentGuestId(null)
-      
-      // Auto-hide success message after 3 seconds
-      setTimeout(() => {
-        setSuccess('')
-      }, 3000)
-    } catch (err: any) {
-      setError(err.message || 'Failed to update guest')
-      // Auto-hide error message after 5 seconds
-      setTimeout(() => {
-        setError('')
-      }, 5000)
+      setShowEditPanel(false)
+    } catch (err) {
+      console.error('Failed to update guest:', err)
+      setError(typeof err === 'object' && err !== null && 'message' in err 
+        ? `Error: ${(err as Error).message}` 
+        : 'Failed to update guest. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -543,9 +542,15 @@ export default function EventGuestsPage() {
   // Function to handle form submission (add or update guest)
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Reset any existing messages
+    resetMessages()
+    
     if (currentGuestId) {
+      // We're editing an existing guest
       updateGuest()
     } else {
+      // We're adding a new guest
       addGuest()
     }
   }
@@ -844,7 +849,7 @@ export default function EventGuestsPage() {
                     value={formData.status} 
                     onValueChange={handleStatusChange}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="w-full h-10">
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1069,7 +1074,7 @@ export default function EventGuestsPage() {
           value={filterStatus}
           onValueChange={handleStatusFilterChange}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full h-10">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
@@ -1112,8 +1117,8 @@ export default function EventGuestsPage() {
                       <TableCell>
                         <div className="flex space-x-2">
                           <Sheet open={showEditPanel && currentGuestId === guest.id} onOpenChange={(open) => {
+                            setShowEditPanel(open);
                             if (!open) {
-                              setShowEditPanel(false);
                               setCurrentGuestId(null);
                               resetForm();
                             }
@@ -1163,7 +1168,7 @@ export default function EventGuestsPage() {
                                 <div className="space-y-2">
                                   <Label htmlFor="status">Status</Label>
                                   <Select value={formData.status} onValueChange={handleStatusChange}>
-                                    <SelectTrigger>
+                                    <SelectTrigger className="w-full h-10">
                                       <SelectValue placeholder="Select status" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -1277,7 +1282,7 @@ export default function EventGuestsPage() {
                 value={templateFormData.type} 
                 onValueChange={handleTemplateTypeChange}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full h-10">
                   <SelectValue placeholder="Select template type" />
                 </SelectTrigger>
                 <SelectContent>
