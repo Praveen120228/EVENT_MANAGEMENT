@@ -1,12 +1,16 @@
 'use client'
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { CalendarRange, Mail } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function VerifyEmailPage() {
+  const searchParams = useSearchParams()
+  const email = searchParams.get('email') || 'your email'
+  
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="w-full max-w-md space-y-8 px-4">
@@ -30,7 +34,7 @@ export default function VerifyEmailPage() {
             </div>
             <CardTitle className="text-center">Verify your email</CardTitle>
             <CardDescription className="text-center">
-              We've sent a verification link to your email address. Please check your inbox and click the link to verify your account.
+              We've sent a verification link to <span className="font-medium">{email}</span>. Please check your inbox and click the link to verify your account.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

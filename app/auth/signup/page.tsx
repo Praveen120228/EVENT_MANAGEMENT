@@ -26,7 +26,8 @@ export default function SignUpPage() {
     setError(null)
 
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      // Sign up the user
+      const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -43,26 +44,43 @@ export default function SignUpPage() {
         return
       }
 
-      // Create a profile for the organizer
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: (await supabase.auth.getUser()).data.user?.id,
-            email,
-            full_name: fullName,
-            role: 'organizer',
-          },
-        ])
+      // Check if we have a user ID from the signup response
+      const userId = data?.user?.id
+      
+      if (userId) {
+        // Create a profile for the organizer
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: userId,
+              email,
+              full_name: fullName,
+              role: 'organizer',
+            },
+          ])
 
-      if (profileError) {
-        setError('Failed to create profile')
-        setLoading(false)
-        return
+        if (profileError) {
+          console.error('Profile creation error:', profileError)
+          // Don't return early, let the user proceed even if profile creation fails
+          // They can complete their profile later
+        }
+      } else {
+        console.log('User created, email confirmation required')
+        // No need to create profile now, will be handled when user confirms email
       }
 
-      router.push('/dashboard')
+      // Show success message and redirect
+      setLoading(false)
+      
+      // If confirmation email is sent, redirect to different page
+      if (data?.user?.identities?.length === 0) {
+        router.push('/auth/verify-email?email=' + encodeURIComponent(email))
+      } else {
+        router.push('/dashboard')
+      }
     } catch (err) {
+      console.error('Signup error:', err)
       setError('An unexpected error occurred')
       setLoading(false)
     }
