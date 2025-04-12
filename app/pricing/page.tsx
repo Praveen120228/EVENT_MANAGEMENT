@@ -2,6 +2,7 @@ import { Check, X } from "lucide-react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { CheckoutButton } from "@/components/subscription/checkout-button"
 
 export default function PricingPage() {
   return (
@@ -122,9 +123,20 @@ export default function PricingPage() {
             </ul>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full bg-emerald-600 hover:bg-emerald-700">
-              <Link href="/auth/signup?plan=pro">Subscribe Now</Link>
-            </Button>
+            <div className="flex w-full gap-4">
+              <CheckoutButton 
+                planId="pro" 
+                interval="monthly" 
+                buttonText="Monthly Plan" 
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700" 
+              />
+              <CheckoutButton 
+                planId="pro" 
+                interval="yearly" 
+                buttonText="Yearly (Save 17%)" 
+                className="flex-1 bg-emerald-700 hover:bg-emerald-800" 
+              />
+            </div>
           </CardFooter>
         </Card>
 
@@ -151,31 +163,35 @@ export default function PricingPage() {
               </li>
               <li className="flex items-start">
                 <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Custom event branding</span>
+                <span>Custom event branding & white-labeling</span>
               </li>
               <li className="flex items-start">
                 <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Automated scheduling</span>
+                <span>Unlimited email invitations</span>
               </li>
               <li className="flex items-start">
                 <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Email + WhatsApp invites (extended)</span>
+                <span>RSVP, polls, Q&A features</span>
               </li>
               <li className="flex items-start">
                 <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Sub-events & nested scheduling</span>
+                <span>Unlimited sub-events</span>
               </li>
               <li className="flex items-start">
                 <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Up to 5 Organizer accounts</span>
+                <span>5 Organizer accounts</span>
               </li>
               <li className="flex items-start">
                 <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Priority support (Live chat/email)</span>
+                <span>WhatsApp + SMS reminders</span>
               </li>
               <li className="flex items-start">
                 <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
-                <span>Advanced analytics dashboard</span>
+                <span>Advanced analytics & reporting</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
+                <span>Priority support with dedicated account manager</span>
               </li>
               <li className="flex items-start">
                 <Check className="h-5 w-5 text-emerald-500 shrink-0 mr-2 mt-0.5" />
@@ -184,9 +200,22 @@ export default function PricingPage() {
             </ul>
           </CardContent>
           <CardFooter>
-            <Button asChild variant="outline" className="w-full border-emerald-600 text-emerald-600 hover:text-emerald-700 hover:border-emerald-700">
-              <Link href="/auth/signup?plan=premium">Contact Sales</Link>
-            </Button>
+            <div className="flex w-full gap-4">
+              <CheckoutButton 
+                planId="premium" 
+                interval="monthly" 
+                buttonText="Monthly Plan" 
+                variant="outline" 
+                className="flex-1 border-emerald-600 text-emerald-600 hover:text-emerald-700 hover:border-emerald-700" 
+              />
+              <CheckoutButton 
+                planId="premium" 
+                interval="yearly" 
+                buttonText="Yearly (Save 17%)" 
+                variant="outline" 
+                className="flex-1 border-emerald-600 text-emerald-600 hover:text-emerald-700 hover:border-emerald-700" 
+              />
+            </div>
           </CardFooter>
         </Card>
       </div>
