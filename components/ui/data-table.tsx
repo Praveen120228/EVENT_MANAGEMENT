@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Input } from "@/components/ui/input"
 import {
   Table,
@@ -42,34 +42,73 @@ export function DataTable<T>({
   const [searchQuery, setSearchQuery] = useState("")
   const pageSize = 10
 
+  // Reset to first page when data or search changes
+  useMemo(() => {
+    setCurrentPage(0)
+  }, [data, searchQuery])
+
   // Filter data based on search query
-  const filteredData = searchColumn && searchQuery
-    ? data.filter((item) => {
+  const filteredData = useMemo(() => {
+    if (!searchColumn || !searchQuery) {
+      return data;
+    }
+    
+    return data.filter((item) => {
+      try {
         const value = (item as any)[searchColumn]
         if (typeof value === "string") {
           return value.toLowerCase().includes(searchQuery.toLowerCase())
         }
         return false
-      })
-    : data
+      } catch (error) {
+        console.error("Error filtering data:", error)
+        return false
+      }
+    })
+  }, [data, searchColumn, searchQuery])
 
   // Calculate pagination
-  const pageCount = Math.ceil(filteredData.length / pageSize)
-  const startIndex = currentPage * pageSize
+  const pageCount = Math.max(1, Math.ceil(filteredData.length / pageSize))
+  
+  // Ensure current page is valid
+  const safeCurrentPage = Math.min(currentPage, pageCount - 1)
+  if (safeCurrentPage !== currentPage) {
+    setCurrentPage(safeCurrentPage)
+  }
+  
+  const startIndex = safeCurrentPage * pageSize
   const paginatedData = filteredData.slice(startIndex, startIndex + pageSize)
   
-  const canPreviousPage = currentPage > 0
-  const canNextPage = currentPage < pageCount - 1
+  const canPreviousPage = safeCurrentPage > 0
+  const canNextPage = safeCurrentPage < pageCount - 1
 
   const previousPage = () => {
     if (canPreviousPage) {
-      setCurrentPage(currentPage - 1)
+      setCurrentPage(safeCurrentPage - 1)
     }
   }
 
   const nextPage = () => {
     if (canNextPage) {
-      setCurrentPage(currentPage + 1)
+      setCurrentPage(safeCurrentPage + 1)
+    }
+  }
+
+  const renderCellContent = (row: T, column: Column<T>) => {
+    try {
+      if (column.cell) {
+        return column.cell({ row })
+      }
+      
+      if (column.accessorKey) {
+        const value = (row as any)[column.accessorKey]
+        return value !== undefined && value !== null ? String(value) : ''
+      }
+      
+      return null
+    } catch (error) {
+      console.error(`Error rendering cell for column ${column.header}:`, error)
+      return <span className="text-red-500">Error</span>
     }
   }
 
@@ -91,7 +130,7 @@ export function DataTable<T>({
           <TableHeader>
             <TableRow>
               {columns.map((column) => (
-                <TableHead key={column.accessorKey || column.id}>
+                <TableHead key={column.accessorKey || column.id || column.header}>
                   {column.header}
                 </TableHead>
               ))}
@@ -110,14 +149,10 @@ export function DataTable<T>({
               ))
             ) : paginatedData.length > 0 ? (
               paginatedData.map((row, rowIndex) => (
-                <TableRow key={rowIndex}>
+                <TableRow key={`row-${rowIndex}`}>
                   {columns.map((column, colIndex) => (
-                    <TableCell key={`${rowIndex}-${colIndex}`}>
-                      {column.cell 
-                        ? column.cell({ row }) 
-                        : column.accessorKey 
-                          ? (row as any)[column.accessorKey] 
-                          : null}
+                    <TableCell key={`cell-${rowIndex}-${colIndex}`}>
+                      {renderCellContent(row, column)}
                     </TableCell>
                   ))}
                 </TableRow>
@@ -150,7 +185,7 @@ export function DataTable<T>({
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <div className="text-sm font-medium">
-              Page {currentPage + 1} of {pageCount}
+              Page {safeCurrentPage + 1} of {pageCount}
             </div>
             <Button
               variant="outline"

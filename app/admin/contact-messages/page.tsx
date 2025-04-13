@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { AdminLayout } from "@/components/admin/layout"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -41,7 +41,7 @@ type ContactMessage = {
 }
 
 export default function ContactMessagesPage() {
-  const { supabase, user } = useSupabase()
+  const { supabase } = useSupabase()
   const [messages, setMessages] = useState<ContactMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('new')
@@ -49,11 +49,7 @@ export default function ContactMessagesPage() {
   const [openDialog, setOpenDialog] = useState(false)
   const { toast } = useToast()
 
-  useEffect(() => {
-    fetchMessages()
-  }, [activeTab])
-
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     try {
       setLoading(true)
       
@@ -83,9 +79,13 @@ export default function ContactMessagesPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [supabase, activeTab, toast])
+
+  useEffect(() => {
+    fetchMessages()
+  }, [fetchMessages])
   
-  const updateMessageStatus = async (id: string, status: 'new' | 'in-progress' | 'resolved' | 'spam') => {
+  const updateMessageStatus = useCallback(async (id: string, status: 'new' | 'in-progress' | 'resolved' | 'spam') => {
     try {
       const { error } = await supabase
         .from('contact_messages')
@@ -96,7 +96,7 @@ export default function ContactMessagesPage() {
         throw error
       }
       
-      setMessages(messages.map(message => 
+      setMessages(prevMessages => prevMessages.map(message => 
         message.id === id ? { ...message, status, updated_at: new Date().toISOString() } : message
       ))
       
@@ -112,9 +112,9 @@ export default function ContactMessagesPage() {
         variant: "destructive",
       })
     }
-  }
+  }, [supabase, toast])
 
-  const deleteMessage = async (id: string) => {
+  const deleteMessage = useCallback(async (id: string) => {
     try {
       const { error } = await supabase
         .from('contact_messages')
@@ -125,7 +125,7 @@ export default function ContactMessagesPage() {
         throw error
       }
       
-      setMessages(messages.filter(message => message.id !== id))
+      setMessages(prevMessages => prevMessages.filter(message => message.id !== id))
       
       toast({
         title: "Message Deleted",
@@ -139,12 +139,12 @@ export default function ContactMessagesPage() {
         variant: "destructive",
       })
     }
-  }
+  }, [supabase, toast])
 
-  const openMessageDetails = (message: ContactMessage) => {
+  const openMessageDetails = useCallback((message: ContactMessage) => {
     setSelectedMessage(message)
     setOpenDialog(true)
-  }
+  }, [])
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -193,7 +193,7 @@ export default function ContactMessagesPage() {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => {
-        const status = row.status
+        const status = row?.status || 'new'
         return (
           <Badge className={getStatusColor(status)}>
             <span className="flex items-center gap-1">
@@ -208,20 +208,28 @@ export default function ContactMessagesPage() {
       accessorKey: "created_at",
       header: "Received",
       cell: ({ row }) => {
-        const date = new Date(row.created_at)
-        return <span>{date.toLocaleDateString()} {date.toLocaleTimeString()}</span>
+        if (!row?.created_at) return <span>N/A</span>
+        
+        try {
+          const date = new Date(row.created_at)
+          return <span>{date.toLocaleDateString()} {date.toLocaleTimeString()}</span>
+        } catch (error) {
+          return <span>Invalid date</span>
+        }
       },
     },
     {
       id: "actions",
       header: "",
       cell: ({ row }) => {
+        if (!row?.id) return null
+        
         return (
           <div className="flex items-center justify-end space-x-2">
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => openMessageDetails(row)}
+              onClick={() => openMessageDetails(row as ContactMessage)}
             >
               View
             </Button>
