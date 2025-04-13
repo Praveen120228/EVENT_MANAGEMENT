@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Database, Settings, BarChart3, LayoutDashboard, MessageSquare } from 'lucide-react';
+import { Database, Settings, BarChart3, LayoutDashboard, MessageSquare, Mail } from 'lucide-react';
 import { getSupabaseClient } from '@/lib/supabase';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -75,6 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/storage', label: 'Storage', icon: Settings },
     { href: '/admin/db-analyzer', label: 'DB Analyzer', icon: BarChart3 },
     { href: '/admin/demo-requests', label: 'Demo Requests', icon: MessageSquare },
+    { href: '/admin/contact-messages', label: 'Contact Messages', icon: Mail },
     { href: '/dashboard', label: 'Main Dashboard', icon: LayoutDashboard },
   ];
 
