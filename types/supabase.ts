@@ -23,6 +23,14 @@ export interface Database {
           updated_at: string
           organizer_name: string | null
           invitation_code: string | null
+          profiles?: {
+            id: string
+            email: string
+            name: string | null
+            full_name?: string
+            created_at: string
+            updated_at: string
+          }
         }
         Insert: {
           id?: string
@@ -52,6 +60,14 @@ export interface Database {
           organizer_name?: string | null
           invitation_code?: string | null
         }
+        Relationships: [
+          {
+            foreignKeyName: "events_organizer_id_fkey"
+            columns: ["organizer_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       guests: {
         Row: {
@@ -64,6 +80,28 @@ export interface Database {
           message: string | null
           created_at: string
           updated_at: string
+          event?: {
+            id: string
+            title: string
+            description: string | null
+            date: string
+            time: string | null
+            location: string | null
+            organizer_id: string
+            max_guests: number | null
+            created_at: string
+            updated_at: string
+            organizer_name: string | null
+            invitation_code: string | null
+            profiles?: {
+              id: string
+              email: string
+              name: string | null
+              full_name?: string
+              created_at: string
+              updated_at: string
+            }
+          }
         }
         Insert: {
           id?: string
@@ -87,12 +125,21 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "guests_event_id_fkey"
+            columns: ["event_id"]
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          }
+        ]
       }
       profiles: {
         Row: {
           id: string
           email: string
           name: string | null
+          full_name?: string
           created_at: string
           updated_at: string
         }
@@ -100,6 +147,7 @@ export interface Database {
           id: string
           email: string
           name?: string | null
+          full_name?: string
           created_at?: string
           updated_at?: string
         }
@@ -107,6 +155,7 @@ export interface Database {
           id?: string
           email?: string
           name?: string | null
+          full_name?: string
           created_at?: string
           updated_at?: string
         }

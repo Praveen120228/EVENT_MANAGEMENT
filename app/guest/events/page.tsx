@@ -20,7 +20,12 @@ interface Event {
   time: string | null
   location: string | null
   organizer_id: string
-  organizer_name: string
+  organizer_name: string | null
+  profiles?: { 
+    id: string
+    full_name?: string
+    name?: string | null
+  } | null
 }
 
 interface GuestEvent {
@@ -81,7 +86,8 @@ export default function GuestEventsPage() {
             time,
             location,
             organizer_id,
-            profiles(full_name)
+            organizer_name,
+            profiles(id, full_name, name)
           )
         `)
         .eq('email', user.email)
@@ -90,13 +96,23 @@ export default function GuestEventsPage() {
       if (error) throw error
 
       // Transform data to include organizer name
-      const formattedEvents = data.map(item => ({
-        ...item,
-        event: {
-          ...item.event,
-          organizer_name: item.event.profiles.full_name
-        }
-      }))
+      const formattedEvents = data.map(item => {
+        const event = item.event as unknown as Event;
+        const profiles = event.profiles as unknown as { id: string; full_name?: string; name?: string | null } | null;
+        
+        // Get organizer name with fallbacks
+        const organizerName = event.organizer_name || 
+          (profiles ? profiles.full_name || profiles.name : null) || 
+          'Event Organizer';
+          
+        return {
+          ...item,
+          event: {
+            ...event,
+            organizer_name: organizerName
+          }
+        } as GuestEvent;
+      });
 
       setEvents(formattedEvents)
     } catch (err: any) {
