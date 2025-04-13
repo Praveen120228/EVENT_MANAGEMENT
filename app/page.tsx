@@ -144,7 +144,7 @@ export default function Home() {
                     </li>
                   </ul>
                   <Button variant="outline" className="w-full border-blue-500 text-blue-600 hover:bg-blue-50 mt-4" size="lg" asChild>
-                    <Link href="#features">Learn More</Link>
+                    <Link href="/docs">Learn More</Link>
                   </Button>
                 </CardContent>
               </Card>

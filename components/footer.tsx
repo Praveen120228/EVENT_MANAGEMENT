@@ -50,18 +50,23 @@ export function Footer() {
             <h3 className="text-lg font-semibold">Features</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link href={getNavLink("features")} className="text-muted-foreground hover:text-emerald-500">
+                <Link href="/docs/events" className="text-muted-foreground hover:text-emerald-500">
                   Event Management
                 </Link>
               </li>
               <li>
-                <Link href={getNavLink("features")} className="text-muted-foreground hover:text-emerald-500">
+                <Link href="/docs/analytics" className="text-muted-foreground hover:text-emerald-500">
                   Analytics
                 </Link>
               </li>
               <li>
-                <Link href={getNavLink("features")} className="text-muted-foreground hover:text-emerald-500">
-                  Customization
+                <Link href="/docs/guests" className="text-muted-foreground hover:text-emerald-500">
+                  Guest Management
+                </Link>
+              </li>
+              <li>
+                <Link href="/pricing" className="text-muted-foreground hover:text-emerald-500">
+                  Pricing Plans
                 </Link>
               </li>
             </ul>
@@ -84,6 +89,11 @@ export function Footer() {
                   Careers
                 </Link>
               </li>
+              <li>
+                <Link href="/contact" className="text-muted-foreground hover:text-emerald-500">
+                  Contact Us
+                </Link>
+              </li>
             </ul>
           </div>
           <div className="space-y-4">
@@ -100,8 +110,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/contact" className="text-muted-foreground hover:text-emerald-500">
-                  Contact Us
+                <Link href="/docs" className="text-muted-foreground hover:text-emerald-500">
+                  Documentation
+                </Link>
+              </li>
+              <li>
+                <Link href="/docs/account#security" className="text-muted-foreground hover:text-emerald-500">
+                  Security
                 </Link>
               </li>
             </ul>

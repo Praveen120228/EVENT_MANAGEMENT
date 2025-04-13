@@ -3,10 +3,16 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { CalendarRange, Menu } from "lucide-react"
+import { CalendarRange, Menu, ChevronDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -35,15 +41,49 @@ export function Header() {
           <Link href={getNavLink("features")} className="text-sm font-medium hover:text-emerald-500 transition-colors">
             Features
           </Link>
-          <Link href={getNavLink("pricing")} className="text-sm font-medium hover:text-emerald-500 transition-colors">
+          <Link href="/pricing" className="text-sm font-medium hover:text-emerald-500 transition-colors">
             Pricing
           </Link>
-          <Link href={getNavLink("testimonials")} className="text-sm font-medium hover:text-emerald-500 transition-colors">
-            Testimonials
-          </Link>
-          <Link href={getNavLink("request-demo")} className="text-sm font-medium hover:text-emerald-500 transition-colors">
-            Contact
-          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="text-sm font-medium hover:text-emerald-500 transition-colors flex items-center gap-1">
+              Company
+              <ChevronDown className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem asChild>
+                <Link href="/about">About</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/blog">Blog</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/careers">Careers</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/contact">Contact</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger className="text-sm font-medium hover:text-emerald-500 transition-colors flex items-center gap-1">
+              Resources
+              <ChevronDown className="h-4 w-4" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem asChild>
+                <Link href="/docs">Documentation</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={getNavLink("testimonials")}>Testimonials</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/terms">Terms of Service</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/privacy">Privacy Policy</Link>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </nav>
         <div className="hidden md:flex gap-4">
           <Button variant="ghost" size="sm" asChild>
@@ -70,26 +110,81 @@ export function Header() {
                 Features
               </Link>
               <Link
-                href={getNavLink("pricing")}
+                href="/pricing"
                 className="text-lg font-medium hover:text-emerald-500 transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Pricing
               </Link>
-              <Link
-                href={getNavLink("testimonials")}
-                className="text-lg font-medium hover:text-emerald-500 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Testimonials
-              </Link>
-              <Link
-                href={getNavLink("request-demo")}
-                className="text-lg font-medium hover:text-emerald-500 transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Contact
-              </Link>
+              
+              <div>
+                <h3 className="font-medium text-sm uppercase text-gray-500 mb-3">Company</h3>
+                <div className="flex flex-col gap-4 pl-2">
+                  <Link
+                    href="/about"
+                    className="text-lg font-medium hover:text-emerald-500 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    About
+                  </Link>
+                  <Link
+                    href="/blog"
+                    className="text-lg font-medium hover:text-emerald-500 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Blog
+                  </Link>
+                  <Link
+                    href="/careers"
+                    className="text-lg font-medium hover:text-emerald-500 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Careers
+                  </Link>
+                  <Link
+                    href="/contact"
+                    className="text-lg font-medium hover:text-emerald-500 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Contact
+                  </Link>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-medium text-sm uppercase text-gray-500 mb-3">Resources</h3>
+                <div className="flex flex-col gap-4 pl-2">
+                  <Link
+                    href="/docs"
+                    className="text-lg font-medium hover:text-emerald-500 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Documentation
+                  </Link>
+                  <Link
+                    href={getNavLink("testimonials")}
+                    className="text-lg font-medium hover:text-emerald-500 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Testimonials
+                  </Link>
+                  <Link
+                    href="/terms"
+                    className="text-lg font-medium hover:text-emerald-500 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Terms of Service
+                  </Link>
+                  <Link
+                    href="/privacy"
+                    className="text-lg font-medium hover:text-emerald-500 transition-colors"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Privacy Policy
+                  </Link>
+                </div>
+              </div>
+              
               <div className="flex flex-col gap-2 mt-4">
                 <Button variant="outline" className="w-full" asChild>
                   <Link href="/auth/login" onClick={() => setIsMenuOpen(false)}>Log In</Link>

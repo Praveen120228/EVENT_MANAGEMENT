@@ -9,14 +9,28 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { CheckCircle, Mail, MapPin, Phone } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/components/ui/use-toast"
 
 export default function ContactPage() {
   const [isSubmitted, setIsSubmitted] = useState(false)
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isLoading, setIsLoading] = useState(false)
+  const { toast } = useToast()
+  
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    // In a real application, you would handle the form submission here
-    setIsSubmitted(true)
+    setIsLoading(true)
+    
+    // In a real application, you would implement the actual form submission here
+    // For now, we're simulating a successful submission
+    setTimeout(() => {
+      setIsLoading(false)
+      setIsSubmitted(true)
+      toast({
+        title: "Message sent",
+        description: "We'll get back to you as soon as possible.",
+        variant: "default",
+      })
+    }, 1500)
   }
 
   return (
@@ -60,6 +74,9 @@ export default function ContactPage() {
                       <p className="text-gray-500 dark:text-gray-400">
                         Thank you for reaching out. We've received your message and will respond shortly.
                       </p>
+                      <Button className="mt-4 bg-emerald-600 hover:bg-emerald-700" onClick={() => setIsSubmitted(false)}>
+                        Send Another Message
+                      </Button>
                     </div>
                   </div>
                 ) : (
@@ -98,8 +115,12 @@ export default function ContactPage() {
                         required
                       />
                     </div>
-                    <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700">
-                      Send Message
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-emerald-600 hover:bg-emerald-700"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? "Sending..." : "Send Message"}
                     </Button>
                   </form>
                 )}
@@ -130,8 +151,8 @@ export default function ContactPage() {
                     <Phone className="h-6 w-6 text-emerald-600 mt-1" />
                     <div>
                       <h3 className="font-bold">Call Us</h3>
-                      <p className="text-gray-500 dark:text-gray-400">Monday to Friday, 9am to 5pm EST</p>
-                      <p>+1 (555) 123-4567</p>
+                      <p className="text-gray-500 dark:text-gray-400">Monday to Friday, 9am to 5pm IST</p>
+                      <p>+91 (123) 456-7890</p>
                     </div>
                   </div>
 
@@ -140,8 +161,8 @@ export default function ContactPage() {
                     <div>
                       <h3 className="font-bold">Visit Us</h3>
                       <p className="text-gray-500 dark:text-gray-400">Our headquarters:</p>
-                      <p>123 Event Plaza, Suite 200</p>
-                      <p>San Francisco, CA 94103</p>
+                      <p>123 Tech Park, 4th Floor</p>
+                      <p>Bangalore, Karnataka 560001</p>
                     </div>
                   </div>
                 </div>
@@ -164,7 +185,7 @@ export default function ContactPage() {
             <div className="mx-auto max-w-3xl text-center space-y-4 mb-10">
               <h2 className="text-3xl font-bold tracking-tight">Our Location</h2>
               <p className="text-gray-500 dark:text-gray-400">
-                Located in the heart of San Francisco, our office is easily accessible by public transportation.
+                Located in Bangalore's tech corridor, our office is easily accessible by public transportation.
               </p>
             </div>
             <div className="aspect-[16/9] w-full rounded-lg overflow-hidden bg-gray-200">
