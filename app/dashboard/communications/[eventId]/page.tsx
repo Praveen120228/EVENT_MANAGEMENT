@@ -10,12 +10,12 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Send, ArrowLeft, Calendar, Mail, Loader2 } from "lucide-react"
 import { format } from "date-fns"
-import { sendGuestInvitationEmails, sendGuestReminderEmails, sendAnnouncementEmail } from "@/app/utils/email-service"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
+import { useToast } from "@/components/ui/use-toast"
 
 interface Guest {
   id: string
@@ -63,6 +63,7 @@ export default function EventCommunicationsPage() {
   const router = useRouter()
   const supabase = createClientComponentClient()
   const eventId = params.eventId as string
+  const { toast } = useToast()
 
   const [loading, setLoading] = useState(true)
   const [sendingEmails, setSendingEmails] = useState(false)
@@ -171,7 +172,24 @@ export default function EventCommunicationsPage() {
       const guestIds = Array.from(selectedGuests)
       const baseUrl = window.location.origin
 
-      await sendGuestInvitationEmails(eventId, guestIds, baseUrl)
+      // Call API endpoint instead of direct import
+      const response = await fetch('/api/emails/send-invitation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          eventId,
+          guestIds,
+          baseUrl,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send invitation emails')
+      }
       
       setSuccess(`Invitation emails sent to ${selectedGuests.size} guests successfully!`)
       setSelectedGuests(new Set())
@@ -200,7 +218,24 @@ export default function EventCommunicationsPage() {
       const guestIds = Array.from(selectedGuests)
       const baseUrl = window.location.origin
 
-      await sendGuestReminderEmails(eventId, guestIds, baseUrl)
+      // Call API endpoint instead of direct import
+      const response = await fetch('/api/emails/send-reminder', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          eventId,
+          guestIds,
+          baseUrl,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send reminder emails')
+      }
       
       setSuccess(`Reminder emails sent to ${selectedGuests.size} guests successfully!`)
       setSelectedGuests(new Set())
@@ -216,8 +251,8 @@ export default function EventCommunicationsPage() {
   }
 
   const sendAnnouncement = async () => {
-    if (!announcementTitle.trim() || !announcementContent.trim()) {
-      setError('Please provide both a title and content for the announcement')
+    if (!announcementTitle || !announcementContent) {
+      setError('Please enter both a title and content for your announcement')
       return
     }
 
@@ -227,18 +262,34 @@ export default function EventCommunicationsPage() {
 
     try {
       const baseUrl = window.location.origin
-      await sendAnnouncementEmail(
-        eventId, 
-        announcementTitle, 
-        announcementContent,
-        baseUrl
-      )
+
+      // Call API endpoint instead of direct import
+      const response = await fetch('/api/emails/send-announcement', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          eventId,
+          announcementTitle,
+          announcementContent,
+          baseUrl,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send announcement emails')
+      }
       
       setSuccess(`Announcement sent to all guests successfully!`)
-      setAnnouncementTitle("")
-      setAnnouncementContent("")
+      setAnnouncementTitle('')
+      setAnnouncementContent('')
       setShowAnnouncementForm(false)
-      fetchEventData() // Refresh data to show the new announcement
+      
+      // Refresh the announcements list
+      fetchEventData()
     } catch (error: any) {
       console.error('Error sending announcement:', error)
       setError(error.message || 'Failed to send announcement')
