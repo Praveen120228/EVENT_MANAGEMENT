@@ -19,9 +19,7 @@ const nextConfig = {
     }
     return config;
   },
-  experimental: {
-    serverComponentsExternalPackages: ['nodemailer', 'puppeteer', 'puppeteer-core', 'razorpay']
-  }
+  serverExternalPackages: ['nodemailer', 'puppeteer', 'puppeteer-core', 'razorpay']
 }
 
 export default nextConfig; 

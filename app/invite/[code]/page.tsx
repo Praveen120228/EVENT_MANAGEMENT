@@ -8,10 +8,12 @@ import { fixEventsProfilesRelationship } from '@/lib/db-fixes';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-interface InvitationPageProps {
+// Updated interface to match NextJS 15 requirements for client components
+type InvitationPageProps = {
   params: {
     code: string;
   };
+  searchParams?: Record<string, string | string[] | undefined>;
 }
 
 export default function InvitationPage({ params }: InvitationPageProps) {
