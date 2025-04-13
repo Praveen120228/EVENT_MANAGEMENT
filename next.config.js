@@ -12,10 +12,16 @@ const nextConfig = {
         util: false,
         os: false,
         child_process: false,
+        dns: false,
+        net: false,
+        tls: false,
       };
     }
     return config;
   },
+  experimental: {
+    serverComponentsExternalPackages: ['nodemailer', 'puppeteer', 'puppeteer-core', 'razorpay']
+  }
 }
 
 export default nextConfig; 
