@@ -409,6 +409,7 @@ export default function GuestEventPage() {
                     <PollResponse
                       key={poll.id}
                       pollId={poll.id}
+                      eventId={eventId}
                       guestId={guest.id}
                       question={poll.question}
                       options={poll.options}
