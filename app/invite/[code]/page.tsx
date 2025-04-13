@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { getSupabaseClient } from '@/lib/supabase';
 import { Loader2, AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react';
@@ -8,16 +8,10 @@ import { fixEventsProfilesRelationship } from '@/lib/db-fixes';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-// Updated interface to match NextJS 15 requirements for client components
-type InvitationPageProps = {
-  params: {
-    code: string;
-  };
-  searchParams?: Record<string, string | string[] | undefined>;
-}
-
-export default function InvitationPage({ params }: InvitationPageProps) {
-  const { code } = params;
+export default function InvitationPage() {
+  // Get the code from URL using useParams hook
+  const params = useParams();
+  const code = params?.code as string;
   const router = useRouter();
   const supabase = getSupabaseClient();
   const [error, setError] = useState<string | null>(null);
@@ -61,6 +55,12 @@ export default function InvitationPage({ params }: InvitationPageProps) {
   };
 
   const joinEvent = async () => {
+    if (!code) {
+      setError('Invalid invitation link. No code provided.');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -107,15 +107,20 @@ export default function InvitationPage({ params }: InvitationPageProps) {
   };
 
   useEffect(() => {
-    try {
-      joinEvent().catch(err => {
-        console.error('Unhandled error in joinEvent:', err);
-        setError('An unexpected error occurred. Please try again later.');
+    if (code) {
+      try {
+        joinEvent().catch(err => {
+          console.error('Unhandled error in joinEvent:', err);
+          setError('An unexpected error occurred. Please try again later.');
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error('Error in useEffect:', err);
+        setError('Failed to process invitation. Please try again later.');
         setLoading(false);
-      });
-    } catch (err) {
-      console.error('Error in useEffect:', err);
-      setError('Failed to process invitation. Please try again later.');
+      }
+    } else {
+      setError('No invitation code provided.');
       setLoading(false);
     }
   }, [code]);
