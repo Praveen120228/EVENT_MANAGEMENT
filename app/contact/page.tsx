@@ -15,14 +15,41 @@ export default function ContactPage() {
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    subject: 'general',
+    message: ''
+  })
+  
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { id, value } = e.target
+    setFormData(prev => ({ ...prev, [id]: value }))
+  }
+  
+  const handleSelectChange = (value: string) => {
+    setFormData(prev => ({ ...prev, subject: value }))
+  }
   
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
     
-    // In a real application, you would implement the actual form submission here
-    // For now, we're simulating a successful submission
-    setTimeout(() => {
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Something went wrong')
+      }
+      
       setIsLoading(false)
       setIsSubmitted(true)
       toast({
@@ -30,7 +57,14 @@ export default function ContactPage() {
         description: "We'll get back to you as soon as possible.",
         variant: "default",
       })
-    }, 1500)
+    } catch (error) {
+      setIsLoading(false)
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send message. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (
@@ -84,16 +118,32 @@ export default function ContactPage() {
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="name">Name</Label>
-                        <Input id="name" placeholder="Your name" required />
+                        <Input 
+                          id="name" 
+                          placeholder="Your name" 
+                          required 
+                          value={formData.name}
+                          onChange={handleChange}
+                        />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
-                        <Input id="email" type="email" placeholder="Your email" required />
+                        <Input 
+                          id="email" 
+                          type="email" 
+                          placeholder="Your email" 
+                          required 
+                          value={formData.email}
+                          onChange={handleChange}
+                        />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject</Label>
-                      <Select>
+                      <Select 
+                        value={formData.subject} 
+                        onValueChange={handleSelectChange}
+                      >
                         <SelectTrigger id="subject">
                           <SelectValue placeholder="Select subject" />
                         </SelectTrigger>
@@ -113,6 +163,8 @@ export default function ContactPage() {
                         placeholder="How can we help you?"
                         className="min-h-[150px]"
                         required
+                        value={formData.message}
+                        onChange={handleChange}
                       />
                     </div>
                     <Button 
