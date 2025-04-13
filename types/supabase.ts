@@ -69,6 +69,52 @@ export interface Database {
           }
         ]
       }
+      subscription_orders: {
+        Row: {
+          id: string
+          order_id: string
+          user_id: string
+          plan_id: string
+          interval: string
+          amount: number
+          status: string
+          receipt: string
+          created_at: string
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          order_id: string
+          user_id: string
+          plan_id: string
+          interval: string
+          amount: number
+          status: string
+          receipt: string
+          created_at?: string
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          order_id?: string
+          user_id?: string
+          plan_id?: string
+          interval?: string
+          amount?: number
+          status?: string
+          receipt?: string
+          created_at?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_orders_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      },
       subscriptions: {
         Row: {
           id: string

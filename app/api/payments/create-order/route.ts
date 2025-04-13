@@ -1,18 +1,47 @@
 import { NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
 import { randomUUID } from 'crypto';
+import { Database } from '@/types/supabase';
 
-// Initialize Razorpay with your key_id and key_secret
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || '',
-  key_secret: process.env.RAZORPAY_KEY_SECRET || '',
-});
+// Initialize Razorpay with your key_id and key_secret - but only if both are available
+let razorpay: Razorpay | null = null;
+const razorpayKeyId = process.env.RAZORPAY_KEY_ID;
+const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+if (razorpayKeyId && razorpayKeySecret) {
+  try {
+    razorpay = new Razorpay({
+      key_id: razorpayKeyId,
+      key_secret: razorpayKeySecret,
+    });
+  } catch (error) {
+    console.error('Error initializing Razorpay client:', error);
+  }
+} else {
+  console.warn('Razorpay credentials missing: RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET not set');
+}
+
+// Initialize Supabase client - with fallback to auth client
+let supabase: SupabaseClient<Database> | null = null;
+
+// Try to create Supabase client with service role if available
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.warn('Supabase URL or Service Role Key not found. Falling back to auth client.');
+  // Fallback to auth client which will work for authenticated requests
+} else {
+  try {
+    supabase = createClient<Database>(supabaseUrl, supabaseKey);
+  } catch (error) {
+    console.error('Error creating Supabase client with service role:', error);
+    // Will fallback to auth client below
+  }
+}
 
 const PLAN_PRICES = {
   'pro': {
@@ -27,6 +56,19 @@ const PLAN_PRICES = {
 
 export async function POST(request: Request) {
   try {
+    // Ensure we have a Supabase client - if service role client failed, use auth client
+    if (!supabase) {
+      supabase = createServerComponentClient<Database>({ cookies });
+    }
+    
+    // Check if Razorpay is initialized
+    if (!razorpay) {
+      return NextResponse.json(
+        { error: 'Payment system not properly configured. Please contact support.' },
+        { status: 500 }
+      );
+    }
+    
     // Get plan details from request
     const { planId, interval, userId } = await request.json();
     
@@ -91,7 +133,7 @@ export async function POST(request: Request) {
       amount: order.amount,
       currency: order.currency,
       receipt: order.receipt,
-      key_id: process.env.RAZORPAY_KEY_ID,
+      key_id: razorpayKeyId,
     });
   } catch (error) {
     console.error('Error creating Razorpay order:', error);
