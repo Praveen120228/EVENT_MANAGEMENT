@@ -1,13 +1,35 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { Database } from '@/types/supabase';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Initialize Supabase client - with fallback to auth client
+let supabase: SupabaseClient<Database> | null = null;
+
+// Try to create Supabase client with service role if available
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  console.warn('Supabase URL or Service Role Key not found. Falling back to auth client.');
+  // Fallback to auth client which will work for authenticated requests
+} else {
+  try {
+    supabase = createClient<Database>(supabaseUrl, supabaseKey);
+  } catch (error) {
+    console.error('Error creating Supabase client with service role:', error);
+    // Will fallback to auth client below
+  }
+}
 
 export async function POST(request: Request) {
   try {
+    // Ensure we have a Supabase client - if service role client failed, use auth client
+    if (!supabase) {
+      supabase = createServerComponentClient<Database>({ cookies });
+    }
+    
     // Get subscription ID from request
     const { subscriptionId } = await request.json();
     

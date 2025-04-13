@@ -69,6 +69,55 @@ export interface Database {
           }
         ]
       }
+      subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          status: string
+          plan_id: string
+          current_period_start: string
+          current_period_end: string
+          created_at: string
+          updated_at: string
+          canceled_at: string | null
+          trial_start: string | null
+          trial_end: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          status: string
+          plan_id: string
+          current_period_start: string
+          current_period_end: string
+          created_at?: string
+          updated_at?: string
+          canceled_at?: string | null
+          trial_start?: string | null
+          trial_end?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          status?: string
+          plan_id?: string
+          current_period_start?: string
+          current_period_end?: string
+          created_at?: string
+          updated_at?: string
+          canceled_at?: string | null
+          trial_start?: string | null
+          trial_end?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      },
       guests: {
         Row: {
           id: string
