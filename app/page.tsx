@@ -58,11 +58,11 @@ export default function Home() {
               <div className="flex items-center justify-center">
                 <div className="relative w-full aspect-video overflow-hidden rounded-xl shadow-2xl border border-gray-200">
                   <Image
-                    src="/images/dashboard-hero.svg"
+                    src="/images/dashboard-hero.jpg"
                     width={1280}
                     height={720}
                     alt="Specyf platform dashboard showing event management interface"
-                    className="object-cover"
+                    className="object-cover w-full h-full"
                     priority
                   />
                 </div>
