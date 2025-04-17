@@ -2,18 +2,27 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarRange, LogOut, Plus, Users, BarChart2 } from 'lucide-react'
+import { CalendarRange, LogOut, Plus, Users, BarChart2, Layout } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSupabase } from '@/hooks/useSupabase'
 import Link from 'next/link'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import CustomDashboard from './components/CustomDashboard'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 
 interface DashboardStats {
-  upcomingEvents: number
-  totalGuests: number
-  pastEvents: number
-  recentActivity: { id: string; title: string; date: string; type: string }[]
+  totalEvents: number;
+  upcomingEvents: number;
+  totalAttendees: number;
+  confirmedAttendees: number;
+  responseRate: string;
+  recentActivity: {
+    title: string;
+    description: string;
+    time: string;
+  }[];
 }
 
 export default function DashboardPage() {
@@ -21,10 +30,13 @@ export default function DashboardPage() {
   const { user, signOut, supabase, loading: authLoading, initialized } = useSupabase()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [useCustomDashboard, setUseCustomDashboard] = useState(false)
   const [stats, setStats] = useState<DashboardStats>({
+    totalEvents: 0,
     upcomingEvents: 0,
-    totalGuests: 0,
-    pastEvents: 0,
+    totalAttendees: 0,
+    confirmedAttendees: 0,
+    responseRate: '0%',
     recentActivity: []
   })
 
@@ -39,142 +51,124 @@ export default function DashboardPage() {
   }, [user, router, initialized, supabase])
 
   const fetchDashboardStats = async () => {
-    if (!supabase || !user) return
-    
     try {
-      setLoading(true)
-      setError(null)
-      console.log('Fetching dashboard stats...')
+      console.log('Fetching dashboard stats...');
+      setLoading(true);
       
-      // Fetch upcoming events (events with date >= today)
-      const today = new Date().toISOString().split('T')[0]
-      console.log('Today\'s date for comparison:', today)
+      const { data: { user } } = await supabase.auth.getUser();
       
-      const { data: upcomingEventsData, error: upcomingError } = await supabase
-        .from('events')
-        .select('id')
-        .eq('organizer_id', user.id)
-        .gte('date', today)
-      
-      if (upcomingError) {
-        console.error('Error fetching upcoming events:', upcomingError)
-        throw upcomingError
+      if (!user) {
+        console.error('No authenticated user found');
+        setError('Please log in to view dashboard');
+        setLoading(false);
+        return;
       }
       
-      console.log('Upcoming events data:', upcomingEventsData)
-      
-      // Fetch past events (events with date < today)
-      const { data: pastEventsData, error: pastError } = await supabase
+      // Fetch all events for organizer
+      const { data: events, error: eventsError } = await supabase
         .from('events')
-        .select('id')
-        .eq('organizer_id', user.id)
-        .lt('date', today)
+        .select('*')
+        .eq('organizer_id', user.id);
       
-      if (pastError) {
-        console.error('Error fetching past events:', pastError)
-        throw pastError
+      if (eventsError) {
+        console.error('Error fetching events:', eventsError);
+        setError('Error fetching event data');
+        setLoading(false);
+        return;
       }
       
-      console.log('Past events data:', pastEventsData)
+      if (!events || events.length === 0) {
+        console.log('No events found for organizer');
+        // Set default stats with zeros
+        setStats({
+          totalEvents: 0,
+          upcomingEvents: 0,
+          totalAttendees: 0,
+          confirmedAttendees: 0,
+          responseRate: '0%',
+          recentActivity: []
+        });
+        setLoading(false);
+        return;
+      }
       
-      // Consolidate all event IDs for the guest count query
-      const allEventIds = [
-        ...(upcomingEventsData || []).map(e => e.id),
-        ...(pastEventsData || []).map(e => e.id)
-      ]
+      console.log(`Found ${events.length} events`);
       
-      // Fetch total guest count only if there are events
-      let guestsData = []
-      if (allEventIds.length > 0) {
-        try {
-          // First check if the guests table exists
-          const { error: tableCheckError } = await supabase
-            .from('guests')
-            .select('count')
-            .limit(1)
-            .single()
-          
-          if (tableCheckError && (tableCheckError.code === 'PGRST116' || tableCheckError.code === '404')) {
-            console.warn('The guests table does not exist yet. Guest count will be zero.', tableCheckError)
-            // Continue without throwing error - guests count will just be 0
-          } else {
-            // Only proceed with guest count if table exists
-            const { data: fetchedGuests, error: guestsError } = await supabase
-              .from('guests')
-              .select('id, event_id')
-              .in('event_id', allEventIds)
-            
-            if (guestsError) {
-              console.error('Error fetching guests:', guestsError)
-              // Don't throw here, just log the error and continue with zero guests
-            } else {
-              guestsData = fetchedGuests || []
-              console.log('Guests data:', guestsData)
-            }
-          }
-        } catch (guestErr) {
-          console.error('Error in guest count:', guestErr)
-          // Continue without failing the whole dashboard
+      // Split events into upcoming and past
+      const now = new Date();
+      const upcomingEvents = events.filter(event => new Date(event.date) > now);
+      
+      // Get all event IDs for guest count query
+      const eventIds = events.map(event => event.id);
+      
+      // Check if guests table exists before querying
+      const { data: tableInfo } = await supabase
+        .rpc('check_table_exists', { table_name: 'guests' });
+      
+      let totalGuests = 0;
+      let confirmedGuests = 0;
+      
+      if (tableInfo && tableInfo.exists) {
+        // Count total guests for all events
+        const { data: guestsData, error: guestsError } = await supabase
+          .from('guests')
+          .select('id, status')
+          .in('event_id', eventIds);
+        
+        if (!guestsError && guestsData) {
+          totalGuests = guestsData.length;
+          confirmedGuests = guestsData.filter(guest => guest.status === 'confirmed').length;
+        } else {
+          console.error('Error fetching guests:', guestsError);
         }
       } else {
-        console.log('No events found, skipping guest count query')
+        console.log('Guests table does not exist yet');
       }
       
-      // Fetch recent activity (most recent events)
-      const { data: recentActivity, error: recentError } = await supabase
-        .from('events')
-        .select('id, title, date, event_type, created_at')
-        .eq('organizer_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(5)
+      // Format recent activity from events, most recent first
+      const recentActivity = events.slice(0, 5).map(event => ({
+        title: event.title,
+        description: `Event ${new Date(event.start_date) > new Date() ? 'upcoming' : 'happened'}`,
+        time: formatTimeAgo(event.created_at),
+      }));
       
-      if (recentError) {
-        console.error('Error fetching recent activity:', recentError)
-        throw recentError
-      }
-      
-      console.log('Recent activity data:', recentActivity)
-      
-      // Update the stats
+      // Update stats with actual data
       setStats({
-        upcomingEvents: upcomingEventsData?.length || 0,
-        pastEvents: pastEventsData?.length || 0,
-        totalGuests: guestsData?.length || 0,
-        recentActivity: recentActivity?.map(event => ({
-          id: event.id,
-          title: event.title,
-          date: event.date,
-          type: event.event_type
-        })) || []
-      })
+        totalEvents: events.length,
+        upcomingEvents: upcomingEvents.length,
+        totalAttendees: totalGuests,
+        confirmedAttendees: confirmedGuests,
+        responseRate: totalGuests > 0 ? `${Math.round((confirmedGuests / totalGuests) * 100)}%` : '0%',
+        recentActivity: recentActivity,
+      });
       
-      console.log('Dashboard stats updated:', {
-        upcomingEvents: upcomingEventsData?.length || 0,
-        pastEvents: pastEventsData?.length || 0,
-        totalGuests: guestsData?.length || 0,
-        recentActivity: recentActivity?.length || 0
-      })
-    } catch (err: any) {
-      console.error('Error fetching dashboard stats:', err)
-      if (err.code === 'PGRST116') {
-        setError('Database tables might not exist or you do not have access to them.')
-      } else if (err.message) {
-        setError(err.message)
-      } else {
-        setError('Failed to load dashboard statistics. Please try again later.')
-      }
-      
-      // Set default stats on error
-      setStats({
-        upcomingEvents: 0,
-        totalGuests: 0,
-        pastEvents: 0,
-        recentActivity: []
-      })
-    } finally {
-      setLoading(false)
+      setLoading(false);
+    } catch (error) {
+      console.error('Error in fetchDashboardStats:', error);
+      setError('Error loading dashboard data');
+      setLoading(false);
     }
-  }
+  };
+  
+  // Helper function to format time ago
+  const formatTimeAgo = (dateInput: string | Date) => {
+    // Ensure we have a Date object
+    const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    
+    if (seconds < 60) return `${seconds} seconds ago`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
+    
+    return date.toLocaleDateString();
+  };
 
   const handleSignOut = async () => {
     try {
@@ -199,6 +193,10 @@ export default function DashboardPage() {
     )
   }
 
+  if (useCustomDashboard) {
+    return <CustomDashboard />
+  }
+
   if (!user) {
     return null
   }
@@ -206,169 +204,163 @@ export default function DashboardPage() {
   const displayName = user.email ? user.email.split('@')[0] : 'User'
 
   return (
-    <>
-      {/* Header */}
-      <header className="border-b bg-background">
-        <div className="flex h-16 items-center justify-between px-6">
-          <h1 className="text-lg font-semibold">Dashboard</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">{user.email}</span>
-            </span>
-            <Button variant="ghost" onClick={handleSignOut} disabled={loading}>
-              <LogOut className="h-4 w-4 mr-2" />
-              {loading ? 'Signing out...' : 'Log Out'}
-            </Button>
+    <div className="container mx-auto px-4 py-6">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-2xl font-bold">Event Dashboard</h1>
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="dashboard-toggle"
+              checked={useCustomDashboard}
+              onCheckedChange={setUseCustomDashboard}
+            />
+            <Label htmlFor="dashboard-toggle" className="text-sm font-medium">
+              Modern Layout
+            </Label>
           </div>
-        </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-6">
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold">Welcome back, {displayName}!</h1>
-            <p className="text-muted-foreground">Here's an overview of your events and activities.</p>
-          </div>
-          <Button variant="outline" onClick={handleRefreshData} disabled={loading}>
-            {loading ? 'Refreshing...' : 'Refresh Data'}
+          <Button onClick={handleRefreshData} variant="outline" size="sm">
+            Refresh
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleSignOut}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
           </Button>
         </div>
-        
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+      </div>
 
-        {/* Stats Overview */}
-        <div className="mb-8 grid gap-4 md:grid-cols-3">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Upcoming Events
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
-                Events in the future
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.upcomingEvents}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Guests
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
-                Across all events
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalGuests}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Past Events
-              </CardTitle>
-              <CardDescription className="text-xs text-muted-foreground">
-                Successfully hosted
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.pastEvents}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-8">
-          <h2 className="mb-4 text-lg font-semibold">Quick Actions</h2>
-          <p className="mb-4 text-sm text-muted-foreground">Manage your events efficiently</p>
-          <div className="grid gap-4 md:grid-cols-4">
-            <Link href="/dashboard/create">
-              <Card className="cursor-pointer transition-colors hover:bg-accent">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Plus className="h-5 w-5 text-emerald-500" />
-                    <CardTitle className="text-base">Create Event</CardTitle>
-                  </div>
-                  <CardDescription>Set up a new event</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-            <Link href="/dashboard/events">
-              <Card className="cursor-pointer transition-colors hover:bg-accent">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <CalendarRange className="h-5 w-5 text-emerald-500" />
-                    <CardTitle className="text-base">Manage Events</CardTitle>
-                  </div>
-                  <CardDescription>View and edit events</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-            <Link href="/dashboard/guests">
-              <Card className="cursor-pointer transition-colors hover:bg-accent">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-emerald-500" />
-                    <CardTitle className="text-base">Guest Lists</CardTitle>
-                  </div>
-                  <CardDescription>Manage attendees</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-            <Link href="/dashboard/analytics">
-              <Card className="cursor-pointer transition-colors hover:bg-accent">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <BarChart2 className="h-5 w-5 text-emerald-500" />
-                    <CardTitle className="text-base">Analytics</CardTitle>
-                  </div>
-                  <CardDescription>View stats and trends</CardDescription>
-                </CardHeader>
-              </Card>
-            </Link>
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div>
-          <h2 className="mb-4 text-lg font-semibold">Recent Activity</h2>
-          <p className="mb-4 text-sm text-muted-foreground">Latest updates from your events</p>
-          <Card>
-            <CardContent className="p-0">
-              {stats.recentActivity.length > 0 ? (
-                <ul className="divide-y">
-                  {stats.recentActivity.map(activity => (
-                    <li key={activity.id} className="p-4 hover:bg-muted">
-                      <Link href={`/dashboard/events/${activity.id}`} className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium">{activity.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(activity.date).toLocaleDateString()} • {activity.type}
-                          </p>
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          View
-                        </Button>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <div className="p-6 text-center text-sm text-muted-foreground">
-                  {loading ? 'Loading activities...' : 'No recent activities'}
+      {/* ... keep rest of original dashboard ... */}
+      
+      {error && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Upcoming Events</CardTitle>
+            <CardDescription>Events scheduled in the future</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="bg-emerald-100 p-2 rounded-full">
+                  <CalendarRange className="h-6 w-6 text-emerald-500" />
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </main>
-    </>
+                <div className="text-2xl font-bold">{stats.upcomingEvents}</div>
+              </div>
+              <Button asChild size="sm">
+                <Link href="/dashboard/create">
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Event
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Total Guests</CardTitle>
+            <CardDescription>Across all your events</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="bg-blue-100 p-2 rounded-full">
+                  <Users className="h-6 w-6 text-blue-500" />
+                </div>
+                <div className="text-2xl font-bold">{stats.totalAttendees}</div>
+              </div>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/dashboard/guests">
+                  Manage Guests
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Past Events</CardTitle>
+            <CardDescription>Completed events history</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="bg-purple-100 p-2 rounded-full">
+                  <BarChart2 className="h-6 w-6 text-purple-500" />
+                </div>
+                <div className="text-2xl font-bold">{stats.totalEvents}</div>
+              </div>
+              <Button asChild size="sm" variant="outline">
+                <Link href="/dashboard/events">
+                  View History
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      <div className="grid gap-6 md:grid-cols-12">
+        <Card className="md:col-span-8">
+          <CardHeader>
+            <CardTitle>Recent Events</CardTitle>
+            <CardDescription>Your most recently created events</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {stats.recentActivity.map((activity, index) => (
+                <div key={index} className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <h3 className="font-medium">{activity.title}</h3>
+                    <p className="text-sm text-muted-foreground">{activity.description}</p>
+                  </div>
+                  <div className="text-sm text-muted-foreground">{activity.time}</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="md:col-span-4">
+          <CardHeader>
+            <CardTitle>Quick Actions</CardTitle>
+            <CardDescription>Common tasks and shortcuts</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Button asChild className="w-full justify-start" variant="outline">
+                <Link href="/dashboard/create">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create New Event
+                </Link>
+              </Button>
+              <Button asChild className="w-full justify-start" variant="outline">
+                <Link href="/dashboard/events">
+                  <CalendarRange className="mr-2 h-4 w-4" />
+                  Manage Events
+                </Link>
+              </Button>
+              <Button asChild className="w-full justify-start" variant="outline">
+                <Link href="/dashboard/guests">
+                  <Users className="mr-2 h-4 w-4" />
+                  Manage Guests
+                </Link>
+              </Button>
+              <Button asChild className="w-full justify-start" variant="outline">
+                <Link href="/dashboard/analytics">
+                  <BarChart2 className="mr-2 h-4 w-4" />
+                  View Analytics
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   )
 } 

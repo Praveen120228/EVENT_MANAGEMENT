@@ -1,0 +1,1 @@
+// Update the guest dashboard page to check for null events

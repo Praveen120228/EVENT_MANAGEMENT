@@ -11,10 +11,14 @@ export async function middleware(req: NextRequest) {
   // Get the pathname
   const pathname = req.nextUrl.pathname
   
-  // Only protect dashboard routes
-  if (pathname.startsWith('/dashboard')) {
-    // Get the user's session
-    const { data: { session } } = await supabase.auth.getSession()
+  // Get the user's session
+  const { data: { session } } = await supabase.auth.getSession()
+  
+  // Protect dashboard routes (organizer routes)
+  if (pathname.startsWith('/dashboard') || 
+      pathname.startsWith('/events') || 
+      pathname.startsWith('/profile') || 
+      pathname.startsWith('/settings')) {
     
     // If no session, redirect to login
     if (!session) {
@@ -23,7 +27,24 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
     
-    console.log('Authenticated session found, allowing access')
+    console.log('Authenticated session found, allowing access to organizer routes')
+  }
+  
+  // Protect guest routes
+  if (pathname.startsWith('/guest/dashboard') || 
+      pathname.startsWith('/guest/events')) {
+    
+    // If no session, redirect to guest login
+    if (!session) {
+      console.log('No authenticated session, redirecting to guest login')
+      const redirectUrl = new URL('/auth/guest-login', req.url)
+      return NextResponse.redirect(redirectUrl)
+    }
+    
+    console.log('Authenticated session found for guest routes, user email:', session.user.email)
+    
+    // Log user metadata to help with debugging
+    console.log('User metadata:', session.user.user_metadata)
   }
 
   return res
@@ -35,6 +56,8 @@ export const config = {
     '/events/:path*',
     '/profile/:path*',
     '/settings/:path*',
-    '/api/:path*'
+    '/api/:path*',
+    '/guest/dashboard/:path*',
+    '/guest/events/:path*'
   ]
 } 

@@ -160,6 +160,12 @@ export default function SignUpPage() {
                 </Link>
               </div>
               <div className="text-sm text-muted-foreground text-center">
+                Received an invitation?{' '}
+                <Link href="/auth/guest-login" className="text-emerald-600 hover:underline">
+                  Join as guest
+                </Link>
+              </div>
+              <div className="text-sm text-muted-foreground text-center">
                 Need help? <Link href="/contact" className="text-primary hover:underline">Contact support</Link>
               </div>
             </CardFooter>

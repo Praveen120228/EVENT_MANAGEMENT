@@ -261,27 +261,29 @@ export default function EventCommunicationsPage() {
     setSuccess('')
 
     try {
-      const baseUrl = window.location.origin
-
-      // Call API endpoint instead of direct import
-      const response = await fetch('/api/emails/send-announcement', {
+      // Call our new API endpoint
+      const response = await fetch('/api/communications/send-announcement', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           eventId,
-          announcementTitle,
-          announcementContent,
-          baseUrl,
+          title: announcementTitle,
+          content: announcementContent
         }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to send announcement emails')
+        throw new Error(data.error || 'Failed to send announcement')
       }
+      
+      toast({
+        title: "Announcement Sent",
+        description: data.message || "Announcement has been sent successfully!",
+      })
       
       setSuccess(`Announcement sent to all guests successfully!`)
       setAnnouncementTitle('')
@@ -291,7 +293,7 @@ export default function EventCommunicationsPage() {
       // Refresh the announcements list
       fetchEventData()
     } catch (error: any) {
-      console.error('Error sending announcement:', error)
+      console.error('Error recording communication:', error)
       setError(error.message || 'Failed to send announcement')
     } finally {
       setSendingAnnouncement(false)

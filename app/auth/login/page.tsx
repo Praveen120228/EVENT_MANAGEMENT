@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { AlertCircle } from 'lucide-react'
+import { AlertCircle, CalendarRange } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -64,6 +64,11 @@ export default function LoginPage() {
 
   return (
     <div className="container flex items-center justify-center min-h-screen py-12">
+      <Link href="/" className="absolute left-4 top-4 flex items-center gap-2">
+        <CalendarRange className="h-6 w-6 text-emerald-500" />
+        <span className="text-xl font-bold">Specyf</span>
+      </Link>
+      
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Welcome to Specyf</CardTitle>
@@ -106,11 +111,17 @@ export default function LoginPage() {
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <div className="text-sm text-muted-foreground">
+        <CardFooter className="flex flex-col space-y-3">
+          <div className="text-sm text-muted-foreground text-center">
             Don't have an account?{' '}
             <Link href="/auth/signup" className="text-primary hover:underline">
               Sign up
+            </Link>
+          </div>
+          <div className="text-sm text-muted-foreground text-center">
+            Received an invitation?{' '}
+            <Link href="/auth/guest-login" className="text-emerald-600 hover:underline">
+              Join as guest
             </Link>
           </div>
         </CardFooter>
