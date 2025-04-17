@@ -2,15 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarRange, LogOut, Plus, Users, BarChart2, Layout } from 'lucide-react'
+import { CalendarRange, LogOut, Plus, Users, BarChart2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useSupabase } from '@/hooks/useSupabase'
 import Link from 'next/link'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import CustomDashboard from './components/CustomDashboard'
-import { Switch } from '@/components/ui/switch'
-import { Label } from '@/components/ui/label'
 
 interface DashboardStats {
   totalEvents: number;
@@ -30,7 +27,6 @@ export default function DashboardPage() {
   const { user, signOut, supabase, loading: authLoading, initialized } = useSupabase()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [useCustomDashboard, setUseCustomDashboard] = useState(false)
   const [stats, setStats] = useState<DashboardStats>({
     totalEvents: 0,
     upcomingEvents: 0,
@@ -193,10 +189,6 @@ export default function DashboardPage() {
     )
   }
 
-  if (useCustomDashboard) {
-    return <CustomDashboard />
-  }
-
   if (!user) {
     return null
   }
@@ -208,16 +200,6 @@ export default function DashboardPage() {
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold">Event Dashboard</h1>
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="dashboard-toggle"
-              checked={useCustomDashboard}
-              onCheckedChange={setUseCustomDashboard}
-            />
-            <Label htmlFor="dashboard-toggle" className="text-sm font-medium">
-              Modern Layout
-            </Label>
-          </div>
           <Button onClick={handleRefreshData} variant="outline" size="sm">
             Refresh
           </Button>
@@ -228,8 +210,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ... keep rest of original dashboard ... */}
-      
       {error && (
         <Alert variant="destructive" className="mb-6">
           <AlertDescription>{error}</AlertDescription>
